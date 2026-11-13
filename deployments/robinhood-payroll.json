@@ -1,0 +1,8 @@
+{
+  "network": "robinhood",
+  "chainId": 4663,
+  "payrollFactory": "0xeD9cE03E385554Bc829879EBa77cCBC1DeDce5bD",
+  "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+  "deployTx": "0x30ad662476ce8cf10c994e03422fbf0e5724cddee256cbdac978e7857542796f",
+  "deployedAt": "2026-11-13T22:06:51.820Z"
+}

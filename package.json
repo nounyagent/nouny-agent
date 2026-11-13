@@ -1,0 +1,25 @@
+{
+  "name": "nouny-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NOUNY smart contracts on Robinhood Chain: non-custodial AgentVault for trading agents and PayrollVault for scheduled USDG payroll.",
+  "license": "MIT",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "test:fuzz": "cross-env FUZZ_RUNS=2000 hardhat test test/fuzz.test.js",
+    "test:fork": "cross-env FORK=1 hardhat test test/fork.test.js",
+    "check": "hardhat run scripts/check-config.js --network robinhood",
+    "verify:deployment": "node scripts/verify-deployment.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "2.0.8",
+    "@nomicfoundation/hardhat-ethers": "3.0.8",
+    "@nomicfoundation/hardhat-network-helpers": "1.0.12",
+    "@openzeppelin/contracts": "5.1.0",
+    "chai": "4.5.0",
+    "cross-env": "7.0.3",
+    "ethers": "6.13.4",
+    "hardhat": "2.22.17"
+  }
+}
