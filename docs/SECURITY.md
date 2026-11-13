@@ -1,104 +1,102 @@
-# NOUNY AgentVault — audit package
+# Security
 
-This document is the starting point for an independent security review. It describes the scope, the trust model, the invariants we expect to hold, and the issues already identified internally.
+> **Status: beta, not independently audited.** The contracts are covered by unit, fuzz and mainnet-fork tests and an internal review, but no external audit has been done yet. Only deposit amounts you can afford to lose, and keep your vault's daily limit small.
 
-> The internal review below was performed by the development team (AI-assisted). It is **not** a substitute for an independent audit.
+1. [Scope](#1-scope)
+2. [Roles and trust](#2-roles-and-trust)
+3. [Worst case if the NOUNY bot is compromised](#3-worst-case-if-the-nouny-bot-is-compromised)
+4. [Guarantees (invariants)](#4-guarantees-invariants)
+5. [Known limitations](#5-known-limitations)
+6. [Verify it yourself](#6-verify-it-yourself)
+7. [Reporting a vulnerability](#7-reporting-a-vulnerability)
 
 ## 1. Scope
 
-| File | nSLOC | Description |
-|---|---|---|
-| `contracts/AgentVault.sol` | ~223 | Per-user non-custodial vault; operator-only Uniswap V3 swaps with oracle-enforced minimum output and a daily value cap |
-| `contracts/AgentVaultFactory.sol` | ~76 | Deploys one vault per wallet with a fixed token/oracle/pool list and the current default operator |
-| `contracts/PayrollVault.sol` | ~140 | Per-owner payroll: owner-set recipients, amounts and intervals; anyone may trigger due payments |
-| `contracts/PayrollFactory.sol` | ~30 | One payroll per wallet, fixed stablecoin, no admin |
-| **Total** | **~470** | |
-
-Out of scope: `contracts/test/Mocks.sol` (test only), the Node.js backend (`server/`), and the website. The backend holds the operator key; its compromise is part of the threat model below.
-
-- Solidity `0.8.24`, `viaIR`, optimizer 200 runs, EVM `cancun`
-- Dependencies: OpenZeppelin Contracts `5.1.0` (`SafeERC20`, `ReentrancyGuard`, `IERC20Metadata`)
-- External integrations: Uniswap V3 `SwapRouter02.exactInputSingle`, Chainlink `AggregatorV3Interface`
-
-## 2. Target deployment
-
-**Robinhood Chain** (chain ID 4663, Arbitrum Orbit L2). Base (8453) is also supported by config.
-
-| | Address |
+| File | Description |
 |---|---|
-| Uniswap V3 SwapRouter02 | `0xcaf681a66d020601342297493863e78c959e5cb2` |
-| USDG (base token, fee tier 0) | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` — feed USDG/USD `0x61B7e5650328764B076A108EFF5fa7282a1B9aD2` |
-| WETH (pinned pool 0.01%) | `0x0bd7d308f8e1639fab988df18a8011f41eacad73` — feed ETH/USD `0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9` |
-| cbBTC (pinned pool 0.05%) | `0xcec185eb182c47d1ba1efc84e6959e18cd620be4` — feed CBBTC/USD `0x0009cD492adf8167f9eEBf1293556A673530a21a` |
+| [`contracts/AgentVault.sol`](../contracts/AgentVault.sol) | Per-user, non-custodial trading vault. The operator may only swap through pinned Uniswap V3 pools, with a Chainlink-enforced minimum output and a daily value cap. |
+| [`contracts/AgentVaultFactory.sol`](../contracts/AgentVaultFactory.sol) | One vault per wallet, with a token / oracle / pool list fixed at deployment. |
+| [`contracts/PayrollVault.sol`](../contracts/PayrollVault.sol) | Per-user payroll in USDG. The owner sets recipients, amounts and intervals; anyone may trigger a payment once it is due. |
+| [`contracts/PayrollFactory.sol`](../contracts/PayrollFactory.sol) | One payroll per wallet, fixed stablecoin, no admin. |
 
-All feeds: 8 decimals, 24h heartbeat, 0.5% deviation threshold. `maxStaleness` = 90,000 s. Addresses are verified on-chain by `npm run check:robinhood` (token symbol, feed description, freshness, and that each pinned pool exists with liquidity).
+Solidity 0.8.24 (`viaIR`, optimizer 200, EVM `cancun`), OpenZeppelin Contracts 5.1.0 (`SafeERC20`, `ReentrancyGuard`). External integrations: Uniswap V3 `SwapRouter02.exactInputSingle` and Chainlink `AggregatorV3Interface`.
 
-## 3. Roles and trust assumptions
+The NOUNY website and backend are not in this repository. The backend holds the operator (bot) key, so its compromise is part of the threat model below.
+
+## 2. Roles and trust
 
 | Role | Powers | Trust |
 |---|---|---|
-| **Vault owner** (end user) | deposit (plain transfer), `withdraw` any token any time (also when paused), `setPaused`, `setOperator` (incl. revoke with `address(0)`), `setLimits`, `setToken` / `removeToken` | Fully trusted for their own vault |
-| **Operator** (NOUNY backend bot) | `swap` only, between allowed tokens, through the pinned pool | **Untrusted.** Assume the key can be stolen |
-| **Factory admin** | `setDefaultOperator` (affects new vaults only), 2-step admin transfer | Cannot change tokens, feeds, staleness, pool tiers, or touch existing vaults |
-| **Chainlink feeds** | price source for the minimum-output check and daily cap | Trusted, with freshness and positivity checks |
-| **Uniswap router / pools** | execution | Untrusted for output amount — the vault checks its own balance delta |
+| **Vault owner** (you) | Deposit; `withdraw` any token at any time (also while paused); pause; replace or revoke the operator; set limits; edit the vault's token list | Fully trusted for their own vault |
+| **Operator** (NOUNY bot) | `swap` between allowed tokens through the pinned pool; trigger due payroll payments | **Untrusted.** The contracts assume its key can be stolen |
+| **AgentVaultFactory admin** | `setDefaultOperator` for vaults created **afterwards**; two-step admin transfer | Cannot change tokens, oracles, staleness limits or pools, and cannot touch existing vaults |
+| **PayrollFactory** | — | No admin at all |
+| **Chainlink feeds** | Price for the minimum-output check and the daily cap | Trusted, with freshness and positive-price checks |
+| **Uniswap router and pools** | Trade execution | Not trusted for the output amount: the vault checks its own balance before and after |
 
-### Maximum loss from a compromised operator
+## 3. Worst case if the NOUNY bot is compromised
 
-The operator can only trade the vault's tokens against each other through the pinned pools. Each swap must return at least `oracleValue × (1 − maxSlippageBps)`, and the total oracle value swapped per 24h window is capped by `dailyLimitUsd`. The worst case per window is therefore roughly:
+**Vaults.** A stolen bot key can only trade a vault's tokens against each other through the pinned pools. It can never withdraw or send funds anywhere else. Each swap must return at least the oracle value minus `maxSlippageBps`, and the total value swapped per 24 hours is capped by `dailyLimitUsd`. The worst loss per day is therefore roughly:
 
 ```
-dailyLimitUsd × (maxSlippageBps + pool fee + oracle deviation)
+dailyLimitUsd × (maxSlippageBps + pool fee + oracle lag)
 ```
 
-e.g. a $1,000 limit, 1% slippage, 0.01% pool fee and up to 0.5% oracle lag ≈ **$15 per day**, until the owner pauses or revokes the operator. Funds can never leave the vault except through the owner's `withdraw`.
+For example: a $1,000 daily limit, 1 % max slippage, a 0.3 % pool and up to 0.5 % oracle lag ≈ **$18 per day**, until you pause the vault or revoke the operator.
 
-## 4. Invariants
+**Payroll.** The bot can only trigger payments that are due, to the addresses and amounts you set, once per interval. It cannot redirect, increase or bring forward any payment. The worst it can do is stop paying, and then anyone, including you, can call `payAllDue()`.
 
-1. Only the owner can move tokens out of the vault (`withdraw`); the operator and router cannot.
-2. A successful `swap` delivers at least `expectedOut × (1 − maxSlippageBps / 10_000)` of `tokenOut`, where `expectedOut` is derived from Chainlink prices — regardless of `minOutFromOperator` or what the router reports.
-3. A swap's net effect on vault balances is exactly `−amountIn` of `tokenIn` and `+amountOut` of `tokenOut`.
-4. The sum of `valueUsd` of successful swaps within a window never exceeds `dailyLimitUsd`.
-5. Swaps only use the pool fee tier pinned for the pair (`max(feeTier(tokenIn), feeTier(tokenOut))`, non-zero).
-6. Router approval after a swap is 0.
-7. Stale (`> maxStaleness`), future-dated or non-positive oracle answers make `swap` revert.
-8. Factory changes never alter an existing vault; the factory's token/oracle/pool list is immutable.
+## 4. Guarantees (invariants)
+
+AgentVault:
+
+1. Only the owner can move tokens out (`withdraw`); the operator and the router cannot.
+2. A successful swap delivers at least `oracleExpectedOut × (1 − maxSlippageBps / 10,000)`, whatever minimum the operator passes and whatever the router reports.
+3. A swap changes vault balances by exactly `−amountIn` of `tokenIn` and `+amountOut` of `tokenOut`.
+4. The oracle value of successful swaps within a 24-hour window never exceeds `dailyLimitUsd`.
+5. Swaps only use the pool fee tier pinned for the pair.
+6. The router approval is 0 after every swap.
+7. Stale (older than `maxStaleness`), future-dated or non-positive oracle answers make `swap` revert.
+8. Factory changes never alter an existing vault, and the factory's token / oracle / pool list cannot change.
 9. The owner can always withdraw, including while paused or with the operator revoked.
 
-Invariants 1–4 are exercised by the randomized test `test/fuzz.test.js` (oracle moves, cheating routers, unauthorized callers, time jumps), including liveness (fair swaps within the limit succeed) and safety (routes > 1% below the oracle never succeed).
+PayrollVault:
 
-## 5. Internal review — findings
+1. Payments only go to an address the owner registered, for the amount the owner set.
+2. Each recipient is paid at most once per interval: `pay` / `payAllDue` move `nextPayAt` forward by one interval per payment.
+3. Only the owner can add, change or remove recipients, pause, or withdraw; the owner can withdraw at any time.
 
-| ID | Severity | Title | Status |
+Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.test.js`](../test/fuzz.test.js), which uses oracle moves, cheating routers, unauthorized callers and time jumps. Payroll limits are fuzzed in [`test/Payroll.test.js`](../test/Payroll.test.js).
+
+## 5. Known limitations
+
+| ID | Severity | Issue | Status |
 |---|---|---|---|
-| NV-01 | Medium | Operator could choose any fee tier, routing through a thin or expensive pool to bleed value on every swap | **Fixed** — tiers pinned per token; `swap` reverts unless `feeTier` equals the pinned tier |
-| NV-02 | Medium | Factory admin could replace the default token/oracle list, giving new vaults a malicious price feed | **Fixed** — list fixed in the constructor; only `setDefaultOperator` remains |
-| NV-03 | Low | No L2 sequencer uptime check. Robinhood Chain has no Chainlink sequencer-uptime feed | **Acknowledged** — mitigated by staleness checks; see 6.1 |
-| NV-04 | Low | Fixed 24h windows: up to 2 × `dailyLimitUsd` can be swapped around a window boundary | **Acknowledged** — bounded and documented |
-| NV-05 | Low | Oracle can lag the market by up to the 0.5% deviation threshold; the effective protection is `maxSlippageBps` ± 0.5% | **Acknowledged** — default slippage 1%; UI minimum 0.1% |
-| NV-06 | Info | `setToken` lets the owner register any feed; a wrong feed only harms the owner's own vault | Acknowledged |
-| NV-07 | Info | Ownership is not transferable; a lost owner key locks the vault's funds | Acknowledged (by design: one vault per wallet) |
-| NV-08 | Info | Native ETH sent to the vault (e.g. via `selfdestruct`) cannot be recovered | Acknowledged |
+| NV-01 | Medium | The operator could pick any fee tier and route through a thin pool | **Fixed**: the tier is pinned per token |
+| NV-02 | Medium | The factory admin could swap the oracle list for new vaults | **Fixed**: the list is fixed at deployment |
+| NV-03 | Low | Robinhood Chain has no Chainlink L2 sequencer-uptime feed | Acknowledged: mitigated by staleness checks |
+| NV-04 | Low | Fixed 24 h windows: up to 2 × `dailyLimitUsd` can be swapped around a window boundary | Acknowledged |
+| NV-05 | Low | Oracles can lag the market by up to their 0.5 % deviation threshold, so effective protection is `maxSlippageBps` ± 0.5 % | Acknowledged |
+| NV-06 | Info | `setToken` lets the owner register any feed; a wrong feed only affects the owner's own vault | Acknowledged |
+| NV-07 | Info | Vault and payroll ownership cannot be transferred; a lost owner key locks the funds | By design |
+| NV-08 | Info | Native ETH force-sent to a vault cannot be recovered | Acknowledged |
+| NV-09 | Info | Stock-token oracles follow US equities 24/5 and pause on weekends; stock swaps revert until they update | By design: safer than trading on a frozen price |
+| NV-10 | Info | Uniswap pools on Robinhood Chain are small (about $20k–$400k), so large swaps hit the slippage guard | Acknowledged: keep sizes small |
+| NV-11 | Low | Payroll: if the keeper is offline for several intervals, missed periods are paid one per call afterwards (catch-up), never more than owed | By design |
 
-## 6. Questions for auditors
+Robinhood Stock Tokens are issued by Robinhood and may carry their own transfer rules and regional availability. The fork tests confirm that a vault contract can hold, buy and sell the 10 listed stock tokens, but those token contracts are outside this scope.
 
-1. **Oracle robustness on an Arbitrum Orbit chain without a sequencer-uptime feed.** Is `maxStaleness` = 90,000 s (24h heartbeat + buffer) acceptable, or should a tighter bound / secondary check be added?
-2. **Price math.** `valueUsd = amountIn × priceIn / 10^decIn`, `expectedOut = valueUsd × 10^decOut / priceOut`. Any precision or overflow edge cases for tokens with unusual decimals (≤ 18 expected)?
-3. **Daily window.** Is the fixed-window design acceptable, or should it be a rolling window?
-4. **Pool manipulation.** With the minimum output tied to Chainlink, can an attacker profit from manipulating the pinned pool (e.g. sandwiching the operator) beyond `maxSlippageBps`?
-5. **Token behaviour.** USDG and WETH on Robinhood Chain are upgradeable/proxy tokens. Any assumptions (balance-delta check, `forceApprove`) that could break with fee-on-transfer or rebasing behaviour?
-6. **Reentrancy.** `swap` and `withdraw` are `nonReentrant`; owner setters are not. Any cross-function path through token or router callbacks?
-
-## 7. How to build and test
+## 6. Verify it yourself
 
 ```bash
-cd contracts
-npm ci
-npx hardhat compile
-npm test                                   # 21 unit tests + randomized invariant test
-FUZZ_SEED=1 FUZZ_RUNS=2000 npx hardhat test test/fuzz.test.js
-npm run test:fork                          # Robinhood Chain mainnet fork (real Uniswap, Chainlink, USDG)
-npm run check:robinhood                    # verify deployment addresses on-chain
+npm install
+npm run build
+npm test                    # unit + fuzz tests
+npm run test:fork           # real Robinhood Chain pools and oracles on a local fork
+npm run check               # every token, feed and pool in config/robinhood.json, on-chain
+npm run verify:deployment   # deployed factories match this repository (config and bytecode)
 ```
 
-Fork tests need `ROBINHOOD_RPC_URL` (public: `https://robinhood.drpc.org`).
+## 7. Reporting a vulnerability
+
+Please **do not** open a public issue for security problems. Report them privately through this repository's **Security → Report a vulnerability** page, with a description and, if possible, a test that reproduces the problem. We will acknowledge the report, and we will credit you if you wish once a fix is live.
