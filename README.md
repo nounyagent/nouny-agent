@@ -81,9 +81,6 @@ Stock tokens are Robinhood Stock Tokens. Their Chainlink feeds follow US equitie
 | Payroll: trigger a **due** payment | ✅ | ✅ | ✅ (only to the people and amounts you set) |
 
 Every swap is protected on-chain: the minimum output is computed from Chainlink (not by the bot), stale or invalid prices are rejected, the pool is pinned per token, total swap value is capped per 24 h, and the vault checks its own balance before and after. Details: **[docs/CONTRACTS.md](docs/CONTRACTS.md)**.
-
-> ⚠️ **Beta, not audited.** These contracts have been tested (unit, fuzz and mainnet-fork tests) but not independently audited. Only deposit what you can afford to lose. See **[docs/SECURITY.md](docs/SECURITY.md)**.
-
 ## Verify the deployment yourself
 
 This repository contains the exact source of the deployed contracts. Anyone can check that the code on-chain is this code:
