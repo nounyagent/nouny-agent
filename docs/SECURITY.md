@@ -1,6 +1,6 @@
 # Security
 
-> **Status: beta, not independently audited.** The contracts are covered by unit, fuzz and mainnet-fork tests and an internal review, but no external audit has been done yet. Only deposit amounts you can afford to lose, and keep your vault's daily limit small.
+The contracts are covered by unit, fuzz and mainnet-fork tests and an internal review. Keep your vault's daily limit small: it caps what can be traded per day.
 
 1. [Scope](#1-scope)
 2. [Roles and trust](#2-roles-and-trust)
