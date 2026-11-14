@@ -11,7 +11,8 @@ Your funds stay in a vault that <b>only you</b> control.
 <a href="https://neon-pavlova-0e2659.netlify.app">Open the app</a> ·
 <a href="docs/USER-GUIDE.md">User guide</a> ·
 <a href="docs/CONTRACTS.md">Contracts</a> ·
-<a href="docs/SECURITY.md">Security</a>
+<a href="docs/SECURITY.md">Security</a> ·
+<a href="https://x.com/nounyagent">X</a>
 </p>
 
 ---
