@@ -1,6 +1,6 @@
 # NOUNY user guide
 
-App: **https://neon-pavlova-0e2659.netlify.app**
+App: **https://neon-pavlova-0e2659.netlify.app** · each feature has its own page: [Agents](https://neon-pavlova-0e2659.netlify.app/agents), [Markets](https://neon-pavlova-0e2659.netlify.app/markets), [Pools](https://neon-pavlova-0e2659.netlify.app/pools), [Payroll](https://neon-pavlova-0e2659.netlify.app/payroll), [Leaderboard](https://neon-pavlova-0e2659.netlify.app/leaderboard), [$NOUNY](https://neon-pavlova-0e2659.netlify.app/token), [Docs](https://neon-pavlova-0e2659.netlify.app/docs).
 
 1. [Connect your wallet](#1-connect-your-wallet)
 2. [Build a paper agent](#2-build-a-paper-agent)
@@ -10,8 +10,9 @@ App: **https://neon-pavlova-0e2659.netlify.app**
 6. [Run a live agent](#6-run-a-live-agent)
 7. [Withdraw, pause or stop](#7-withdraw-pause-or-stop)
 8. [Payroll](#8-payroll)
-9. [Fees and limits](#9-fees-and-limits)
-10. [Troubleshooting](#10-troubleshooting)
+9. [Hooked pool: swap and provide liquidity](#9-hooked-pool-swap-and-provide-liquidity)
+10. [Fees and limits](#10-fees-and-limits)
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
@@ -27,7 +28,7 @@ Your wallet asks you to **sign a message** ("Sign in with Ethereum"). This prove
 
 Paper agents trade **virtual money** ($10,000 each) on **real prices**. Use them to try strategies before risking anything.
 
-1. Go to **Agent Studio**.
+1. Go to **[Agent Studio](https://neon-pavlova-0e2659.netlify.app/agents)**.
 2. **Name**: 3–32 letters or numbers.
 3. **Strategy**: see [Strategies](#3-strategies). Each one has a few settings; the defaults are sensible.
 4. **Mode**: *Paper*.
@@ -109,7 +110,7 @@ Even if the NOUNY website went offline, you could still withdraw by calling `wit
 
 Pay people in USDG on a schedule.
 
-1. Scroll to **Payroll** and click **Create payroll vault** (one per wallet).
+1. Open **[Payroll](https://neon-pavlova-0e2659.netlify.app/payroll)** and click **Create payroll vault** (one per wallet).
 2. **Deposit** USDG.
 3. **Add recipient**: their wallet address, amount, schedule (**weekly**, **every 2 weeks** or **monthly** = every 30 days) and the date of the first payment (empty = now).
 4. That's it. The NOUNY bot checks every hour and pays each salary when it is due.
@@ -118,14 +119,35 @@ The card shows the balance, the monthly cost and the **runway** (how many months
 
 Only you can add or remove recipients and withdraw. The bot, or anyone else, can only trigger a payment that is due, to the address and amount you set, once per period.
 
-## 9. Fees and limits
+## 9. Hooked pool: swap and provide liquidity
+
+Open **[Pools](https://neon-pavlova-0e2659.netlify.app/pools)**. The pool is **WETH / USDG** on Uniswap v4 with the NOUNY hook: its fee rises when the price moves fast and falls when markets are calm (0.05 % to 1 %), and each address can swap only once per block.
+
+**Swap**
+
+1. In the **Swap** card, pick the direction (the ⇄ button) and enter an amount. The card shows what you receive, the current hook fee and the minimum you will get (1 % below the quote).
+2. The first time, click **Approve** for the token you pay with.
+3. Click **Swap** and confirm. If the price moves more than 1 % before your transaction lands, it reverts and nothing is traded.
+
+**Provide liquidity with an LP vault**
+
+1. In the **LP vault** card, choose your limits: range width (min and max, in %), how often the agent may move the range, and the maximum gap between the pool price and Chainlink.
+2. Click **Create vault** and confirm. The vault is yours, one per wallet.
+3. **Deposit** WETH and USDG into it.
+4. The agent checks every hour. It opens a range around the current price and moves it when the price gets near an edge or leaves the range, only within your limits and only when the pool price matches Chainlink. Every decision appears in the **Agent decision log**.
+
+You can **Exit** (pull all liquidity back into the vault) and **Withdraw** at any time, even while paused. **Pause** or **Revoke agent access** stops the agent from moving your range.
+
+Providing liquidity has risk: when the price moves, the position ends up holding more of the token that fell (impermanent loss). Fees earned are added back into the position.
+
+## 10. Fees and limits
 
 - **NOUNY fees: none.** You pay network gas for your own transactions (fractions of a cent on Robinhood Chain). The bot pays gas for agent trades and payroll runs.
 - **Uniswap pool fee** on each live trade: 0.01 % (ETH), 0.05 % (BTC, AAPL, NVDA, GOOGL, SPY, QQQ, COIN) or 0.3 % (TSLA, MSFT, AMZN, META), plus price impact.
 - Pools on Robinhood Chain are still small (tens to hundreds of thousands of dollars), so keep trade sizes small to limit price impact. The slippage limit protects you: a trade that would be worse than your max slippage versus the oracle is refused.
 - Paper agents simulate 0.1 % cost per trade.
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Message | Meaning / fix |
 |---|---|
@@ -136,4 +158,6 @@ Only you can add or remove recipients and withdraw. The bot, or anyone else, can
 | "price moved too much (slippage guard)" | The pool price was worse than your max slippage versus the oracle. Nothing was traded. |
 | "oracle price is paused or stale" | Usually a stock on a weekend. The agent retries every hour. |
 | "agent access to the vault was revoked" / "vault is paused" | Use **Give agent access** / **Resume vault**. |
+| "One swap per block" | You (or a transaction from your address) already swapped in this pool in the current block. Try again a second later. |
+| "Price is too far from the oracle" (LP vault) | The pool price differs from Chainlink by more than your limit, so the agent waits. Nothing is moved. |
 | A due salary was not paid | Check the payroll balance; it is paid within the hour after you deposit. |

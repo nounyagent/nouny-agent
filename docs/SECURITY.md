@@ -18,8 +18,11 @@ The contracts are covered by unit, fuzz and mainnet-fork tests and an internal r
 | [`contracts/AgentVaultFactory.sol`](../contracts/AgentVaultFactory.sol) | One vault per wallet, with a token / oracle / pool list fixed at deployment. |
 | [`contracts/PayrollVault.sol`](../contracts/PayrollVault.sol) | Per-user payroll in USDG. The owner sets recipients, amounts and intervals; anyone may trigger a payment once it is due. |
 | [`contracts/PayrollFactory.sol`](../contracts/PayrollFactory.sol) | One payroll per wallet, fixed stablecoin, no admin. |
+| [`contracts/NounyHook.sol`](../contracts/NounyHook.sol) | Uniswap v4 hook: volatility-based dynamic fee, one swap per block per address, optional payroll share of the fee. Cannot touch liquidity. |
+| [`contracts/NounyLPVault.sol`](../contracts/NounyLPVault.sol) | Per-user liquidity vault for one v4 pool, plus its factory. The operator may only move the range, near the Chainlink price and within the owner's limits. |
+| [`contracts/NounySwapRouter.sol`](../contracts/NounySwapRouter.sol) | Exact-input swap router for v4 pools with a minimum output and a deadline. No owner, holds no funds. |
 
-Solidity 0.8.24 (`viaIR`, optimizer 200, EVM `cancun`), OpenZeppelin Contracts 5.1.0 (`SafeERC20`, `ReentrancyGuard`). External integrations: Uniswap V3 `SwapRouter02.exactInputSingle` and Chainlink `AggregatorV3Interface`.
+AgentVault and Payroll: Solidity 0.8.24 (`viaIR`, optimizer 200, EVM `cancun`), OpenZeppelin Contracts 5.1.0 (`SafeERC20`, `ReentrancyGuard`). Hooked pools: Solidity 0.8.26 (`viaIR`, optimizer 44,444,444, EVM `cancun`), `@uniswap/v4-core` 1.0.2. External integrations: Uniswap V3 `SwapRouter02.exactInputSingle`, the Uniswap v4 `PoolManager`, and Chainlink `AggregatorV3Interface`.
 
 The NOUNY website and backend are not in this repository. The backend holds the operator (bot) key, so its compromise is part of the threat model below.
 
@@ -32,6 +35,10 @@ The NOUNY website and backend are not in this repository. The backend holds the 
 | **AgentVaultFactory admin** | `setDefaultOperator` for vaults created **afterwards**; two-step admin transfer | Cannot change tokens, oracles, staleness limits or pools, and cannot touch existing vaults |
 | **PayrollFactory** | — | No admin at all |
 | **Chainlink feeds** | Price for the minimum-output check and the daily cap | Trusted, with freshness and positive-price checks |
+| **LP vault owner** (you) | Deposit; `exit` and `withdraw` at any time (also while paused); pause; replace or revoke the operator; set range and oracle limits; rebalance | Fully trusted for their own LP vault |
+| **Operator on an LP vault** (NOUNY bot) | `rebalance` only: move the range, within the owner's limits, near the oracle price, once per interval | **Untrusted** |
+| **Hooked pool owner** | `setPayroll` (up to 50 % of the swap fee to a payroll address) and `setOwner` | Cannot change the fee formula, block swaps or touch liquidity. The swapper's total fee does not change; LPs give up the payroll share |
+| **NounyLPVaultFactory admin** | `setDefaultOperator` for vaults created **afterwards** | Cannot touch existing LP vaults |
 | **Uniswap router and pools** | Trade execution | Not trusted for the output amount: the vault checks its own balance before and after |
 
 ## 3. Worst case if the NOUNY bot is compromised
@@ -45,6 +52,8 @@ dailyLimitUsd × (maxSlippageBps + pool fee + oracle lag)
 For example: a $1,000 daily limit, 1 % max slippage, a 0.3 % pool and up to 0.5 % oracle lag ≈ **$18 per day**, until you pause the vault or revoke the operator.
 
 **Payroll.** The bot can only trigger payments that are due, to the addresses and amounts you set, once per interval. It cannot redirect, increase or bring forward any payment. The worst it can do is stop paying, and then anyone, including you, can call `payAllDue()`.
+
+**LP vaults.** A stolen bot key can only call `rebalance`. It can never withdraw or send tokens out. Each rebalance must keep the current price inside the new range, use a width within your `[minWidth, maxWidth]`, happen when the pool price is within `maxDeviationBps` of Chainlink, and wait `minInterval` since the last one. The worst it can do is place the range badly within those bounds (for example always at the narrowest width), which lowers fees and can increase impermanent loss, until you pause the vault, revoke the operator or `exit`.
 
 ## 4. Guarantees (invariants)
 
@@ -66,7 +75,20 @@ PayrollVault:
 2. Each recipient is paid at most once per interval: `pay` / `payAllDue` move `nextPayAt` forward by one interval per payment.
 3. Only the owner can add, change or remove recipients, pause, or withdraw; the owner can withdraw at any time.
 
-Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.test.js`](../test/fuzz.test.js), which uses oracle moves, cheating routers, unauthorized callers and time jumps. Payroll limits are fuzzed in [`test/Payroll.test.js`](../test/Payroll.test.js).
+NounyLPVault:
+
+1. Only the owner can move tokens out (`withdraw`); the operator, the factory and the pool cannot.
+2. An operator rebalance reverts unless the pool price is within `maxDeviationBps` of the Chainlink price, the current tick is inside the new range, the width is within `[minWidth, maxWidth]`, the vault is not paused and `minInterval` has passed.
+3. Stale, future-dated or non-positive oracle answers make an operator rebalance revert.
+4. The owner can always `exit` and `withdraw`, including while paused, with the operator revoked, or with a broken oracle.
+
+NounyHook:
+
+1. The fee is always between `minFee` and `maxFee` and is computed on-chain; nobody can set it by hand.
+2. An address can swap at most once per L2 block in a hooked pool.
+3. The payroll share is at most 50 % of the fee, and only the pool owner can change it.
+
+Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.test.js`](../test/fuzz.test.js), which uses oracle moves, cheating routers, unauthorized callers and time jumps. Payroll limits are fuzzed in [`test/Payroll.test.js`](../test/Payroll.test.js). The hooked-pool rules are tested against a local v4 PoolManager in [`test/NounyHook.test.js`](../test/NounyHook.test.js), [`test/NounyLPVault.test.js`](../test/NounyLPVault.test.js) and [`test/NounySwapRouter.test.js`](../test/NounySwapRouter.test.js), and against the real PoolManager on a fork in [`test/hook-fork.test.js`](../test/hook-fork.test.js).
 
 ## 5. Known limitations
 
@@ -83,6 +105,11 @@ Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.
 | NV-09 | Info | Stock-token oracles follow US equities 24/5 and pause on weekends; stock swaps revert until they update | By design: safer than trading on a frozen price |
 | NV-10 | Info | Uniswap pools on Robinhood Chain are small (about $20k–$400k), so large swaps hit the slippage guard | Acknowledged: keep sizes small |
 | NV-11 | Low | Payroll: if the keeper is offline for several intervals, missed periods are paid one per call afterwards (catch-up), never more than owed | By design |
+| NV-12 | Low | The one-swap-per-block rule is keyed on `tx.origin`: it limits each signing address, not a set of addresses controlled by one party, and users of a shared relayer share one limit | Acknowledged |
+| NV-13 | Low | Liquidity providers carry impermanent loss; the agent moving the range does not remove it | By design: explained in the user guide |
+| NV-14 | Info | The hook's fee settings (`minFee`, `maxFee`, `feePerTick`) are immutable; changing them needs a new hook and pool | By design |
+| NV-15 | Info | LP vaults and the swap router do not support native ETH; the pool uses WETH | By design |
+| NV-16 | Info | LP vault ownership cannot be transferred; a lost owner key locks the funds | By design |
 
 Robinhood Stock Tokens are issued by Robinhood and may carry their own transfer rules and regional availability. The fork tests confirm that a vault contract can hold, buy and sell the 10 listed stock tokens, but those token contracts are outside this scope.
 
@@ -94,7 +121,7 @@ npm run build
 npm test                    # unit + fuzz tests
 npm run test:fork           # real Robinhood Chain pools and oracles on a local fork
 npm run check               # every token, feed and pool in config/robinhood.json, on-chain
-npm run verify:deployment   # deployed factories match this repository (config and bytecode)
+npm run verify:deployment   # deployed contracts match this repository (config and bytecode)
 ```
 
 ## 7. Reporting a vulnerability

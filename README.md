@@ -3,12 +3,13 @@
 <h1 align="center">NOUNY Agent</h1>
 
 <p align="center">
-No-code trading agents for crypto and tokenized stocks, plus on-chain payroll, on <b>Robinhood Chain</b>.<br>
+No-code trading agents for crypto and tokenized stocks, on-chain payroll and hooked Uniswap v4 pools, on <b>Robinhood Chain</b>.<br>
 Your funds stay in a vault that <b>only you</b> control.
 </p>
 
 <p align="center">
 <a href="https://neon-pavlova-0e2659.netlify.app">Open the app</a> ·
+<a href="https://neon-pavlova-0e2659.netlify.app/docs">Website docs</a> ·
 <a href="docs/USER-GUIDE.md">User guide</a> ·
 <a href="docs/CONTRACTS.md">Contracts</a> ·
 <a href="docs/SECURITY.md">Security</a> ·
@@ -24,14 +25,18 @@ Your funds stay in a vault that <b>only you</b> control.
 | **Paper agents** | Build an agent (momentum, mean reversion or moving-average crossover), backtest it on real prices and let it run every hour. | Virtual $10,000 |
 | **Live agents** | The same agent trades **your own on-chain vault** through Uniswap on Robinhood Chain: ETH, BTC and 10 Robinhood Stock Tokens against USDG. | Real (USDG) |
 | **Payroll** | A payroll vault that pays salaries in USDG automatically — weekly, every 2 weeks or monthly. | Real (USDG) |
+| **Hooked pool** | A WETH / USDG Uniswap v4 pool whose fee follows volatility. **Swap** in it, or open an **LP vault** that the agent keeps in range. | Real (WETH, USDG) |
+
+Each feature has its own page on the website: [Agents](https://neon-pavlova-0e2659.netlify.app/agents) · [Markets](https://neon-pavlova-0e2659.netlify.app/markets) · [Pools](https://neon-pavlova-0e2659.netlify.app/pools) · [Payroll](https://neon-pavlova-0e2659.netlify.app/payroll) · [Leaderboard](https://neon-pavlova-0e2659.netlify.app/leaderboard) · [$NOUNY](https://neon-pavlova-0e2659.netlify.app/token).
 
 Markets for agents: crypto (BTC, ETH, SOL, …), perpetuals (paper only) and stocks — **AAPL, NVDA, TSLA, MSFT, AMZN, GOOGL, META, SPY, QQQ, COIN**.
 
 ## Quick start
 
 1. Open **[the app](https://neon-pavlova-0e2659.netlify.app)** and click **Connect wallet** (MetaMask, OKX Wallet, Rabby, Coinbase Wallet…). You only sign a message — no transaction, no fee.
-2. In **Agent Studio**, name an agent, pick a strategy and a market, and click **Backtest & launch**. It starts in **paper** mode.
+2. In **[Agent Studio](https://neon-pavlova-0e2659.netlify.app/agents)**, name an agent, pick a strategy and a market, and click **Backtest & launch**. It starts in **paper** mode.
 3. For real money: create your **vault**, deposit **USDG** on Robinhood Chain and create an agent in **Live** mode.
+4. To swap or provide liquidity in the hooked pool, open **[Pools](https://neon-pavlova-0e2659.netlify.app/pools)**.
 
 Step-by-step instructions, with what each button does: **[docs/USER-GUIDE.md](docs/USER-GUIDE.md)**.
 
@@ -42,9 +47,13 @@ Step-by-step instructions, with what each button does: **[docs/USER-GUIDE.md](do
 | **AgentVaultFactory** | [`0x0315841Ff9eC63321Faa050e937FD8402053C090`](https://robinhoodchain.blockscout.com/address/0x0315841Ff9eC63321Faa050e937FD8402053C090) | Creates one `AgentVault` per wallet with a fixed token / oracle / pool list |
 | **PayrollFactory** | [`0xeD9cE03E385554Bc829879EBa77cCBC1DeDce5bD`](https://robinhoodchain.blockscout.com/address/0xeD9cE03E385554Bc829879EBa77cCBC1DeDce5bD) | Creates one `PayrollVault` per wallet, pays in USDG, no admin |
 | NOUNY bot (operator) | [`0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2`](https://robinhoodchain.blockscout.com/address/0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2) | May only **swap inside** vaults and **trigger** due payroll payments |
+| **NounyHook** | [`0xB4aaB55e82646A63fD2774405c0356Da4652a0C4`](https://robinhoodchain.blockscout.com/address/0xB4aaB55e82646A63fD2774405c0356Da4652a0C4) | Uniswap v4 hook of the WETH / USDG hooked pool: dynamic fee, one swap per block per address, optional payroll share |
+| **NounyLPVaultFactory** | [`0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE`](https://robinhoodchain.blockscout.com/address/0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE) | Creates one `NounyLPVault` per wallet and pool; new vaults get the NOUNY bot as operator |
+| **NounySwapRouter** | [`0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9`](https://robinhoodchain.blockscout.com/address/0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9) | Exact-input swaps in hooked pools, with a minimum output and a deadline |
+| Uniswap v4 PoolManager | [`0x8366a39cc670b4001a1121b8f6a443a643e40951`](https://robinhoodchain.blockscout.com/address/0x8366a39cc670b4001a1121b8f6a443a643e40951) | Holds the hooked pool's liquidity |
 | Uniswap V3 SwapRouter02 | [`0xcaf681a66d020601342297493863e78c959e5cb2`](https://robinhoodchain.blockscout.com/address/0xcaf681a66d020601342297493863e78c959e5cb2) | The only router a vault swaps through |
 
-Your own `AgentVault` and `PayrollVault` addresses are shown in the app and returned by `vaultOf(yourWallet)` / `payrollOf(yourWallet)` on the factories.
+Your own `AgentVault`, `PayrollVault` and `NounyLPVault` addresses are shown in the app and returned by `vaultOf(yourWallet)` / `payrollOf(yourWallet)` / `vaultOf(yourWallet, poolId)` on the factories.
 
 > Deprecated: AgentVaultFactory `0x2bD4C69999C1eD04a9FAd6F3Fbae3904CCf0421E` (crypto only, replaced when stock tokens were added). Vaults created there still belong to their owners and can be withdrawn at any time.
 
@@ -70,6 +79,18 @@ Every vault created by the factory above accepts exactly these tokens. Prices co
 
 Stock tokens are Robinhood Stock Tokens. Their Chainlink feeds follow US equities 24/5 and already include the corporate-action multiplier (splits, dividends). They pause on weekends, so stock swaps are blocked until the feed updates again.
 
+### Hooked pool: WETH / USDG
+
+| | |
+|---|---|
+| Pool ID | `0x0f1b6d9e3fb170d7270cf8f448b7d72364fd58d22c164e312ff81a541f5d210e` |
+| Tokens | WETH (currency0) / USDG (currency1), tick spacing 60, dynamic fee |
+| Fee | 0.05 % when calm, plus 0.005 % per tick of average price move per block, capped at 1 %. Computed on-chain on every swap. |
+| Swaps | One per block per address (blocks sandwiching and most MEV) |
+| LP vaults | The agent moves your range to follow the price, only when the pool price is within your limit of Chainlink (WETH/USD and USDG/USD feeds), at most once per interval you set |
+
+In the app, liquidity comes from LP vaults. Every swap through `NounySwapRouter` carries a minimum output (the app sets it 1 % below the quote) and a deadline, so it reverts instead of filling at a worse price.
+
 ## Who can do what
 
 | | You (vault owner) | NOUNY bot | Anyone else |
@@ -80,8 +101,12 @@ Stock tokens are Robinhood Stock Tokens. Their Chainlink feeds follow US equitie
 | Change limits, pause, revoke the bot | ✅ | ❌ | ❌ |
 | Payroll: add / remove recipients | ✅ | ❌ | ❌ |
 | Payroll: trigger a **due** payment | ✅ | ✅ | ✅ (only to the people and amounts you set) |
+| LP vault: move the range (rebalance) | ✅ | ✅ within your limits, near the oracle price, once per interval | ❌ |
+| LP vault: exit the pool, withdraw | ✅ any time, even while paused | ❌ never | ❌ |
+| LP vault: change limits, pause, revoke the bot | ✅ | ❌ | ❌ |
 
-Every swap is protected on-chain: the minimum output is computed from Chainlink (not by the bot), stale or invalid prices are rejected, the pool is pinned per token, total swap value is capped per 24 h, and the vault checks its own balance before and after. Details: **[docs/CONTRACTS.md](docs/CONTRACTS.md)**.
+Every agent swap is protected on-chain: the minimum output is computed from Chainlink (not by the bot), stale or invalid prices are rejected, the pool is pinned per token, total swap value is capped per 24 h, and the vault checks its own balance before and after. Every LP rebalance is checked on-chain too: pool price within your limit of Chainlink, current price inside the new range, range width within your bounds, and a minimum time between rebalances. Details: **[docs/CONTRACTS.md](docs/CONTRACTS.md)**.
+
 ## Verify the deployment yourself
 
 This repository contains the exact source of the deployed contracts. Anyone can check that the code on-chain is this code:
@@ -92,14 +117,14 @@ npm run build
 npm run verify:deployment
 ```
 
-The script reads the factories on Robinhood Chain (read-only, no keys), checks every token, oracle, staleness limit and pool fee tier against [`config/robinhood.json`](config/robinhood.json), and compares the deployed bytecode with the code compiled from this repository.
+The script reads the contracts on Robinhood Chain (read-only, no keys). It checks every token, oracle, staleness limit and pool fee tier against [`config/robinhood.json`](config/robinhood.json), checks the hook's fee settings, permission flags and pool registration, and compares the deployed bytecode of **AgentVaultFactory, PayrollFactory, NounyHook, NounyLPVaultFactory and NounySwapRouter** with the code compiled from this repository.
 
 ### Run the tests
 
 ```bash
-npm test             # 35 unit and fuzz tests (AgentVault + Payroll)
+npm test             # 63 unit and fuzz tests (AgentVault, Payroll, NounyHook, NounyLPVault, NounySwapRouter)
 npm run test:fuzz    # longer AgentVault fuzz run (2,000 random steps)
-npm run test:fork    # against a local copy of Robinhood Chain: real Uniswap pools and Chainlink feeds
+npm run test:fork    # against a local copy of Robinhood Chain: real Uniswap V3 pools, the real v4 PoolManager and Chainlink feeds
 npm run check        # re-checks every token, feed and pool in config/robinhood.json on-chain
 ```
 
@@ -108,10 +133,11 @@ Requires Node.js 20+. The fork test uses `https://robinhood.drpc.org` by default
 ## Repository layout
 
 ```
-contracts/            AgentVault, AgentVaultFactory, PayrollVault, PayrollFactory (+ test mocks)
+contracts/            AgentVault, AgentVaultFactory, PayrollVault, PayrollFactory,
+                      NounyHook, NounyLPVault (+ factory), NounySwapRouter (+ test mocks and a local v4 harness)
 test/                 unit, fuzz and fork tests
 config/robinhood.json tokens, Chainlink feeds, pool fee tiers, router
-deployments/          deployed addresses on Robinhood Chain
+deployments/          deployed addresses on Robinhood Chain (robinhood-hooked.json: hook, pool, LP factory, router)
 scripts/              on-chain config check and deployment verification (read-only)
 docs/                 user guide, contract reference, security model
 ```

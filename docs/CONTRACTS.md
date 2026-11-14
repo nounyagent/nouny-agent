@@ -34,3 +34,50 @@ Every swap: oracle-computed minimum output (`maxSlippageBps` vs Chainlink), stal
 ## PayrollFactory
 
 `createPayroll()` (one per wallet), `payrollOf(owner)`, `payrollCount()`, `payrolls(start, count)`. Fixed stablecoin (USDG), no admin.
+
+---
+
+# Hooked pools (Uniswap v4)
+
+Sources: `NounyHook.sol`, `NounyLPVault.sol` (vault + factory), `NounySwapRouter.sol`. Solidity 0.8.26, `@uniswap/v4-core` 1.0.2, compiled with `viaIR`, optimizer 44,444,444 runs, EVM `cancun`. Addresses: [`deployments/robinhood-hooked.json`](../deployments/robinhood-hooked.json).
+
+## NounyHook
+
+A hook runs inside the Uniswap v4 PoolManager on every swap of the pools that use it. Its address encodes its permissions: `beforeInitialize`, `beforeSwap`, `afterSwap`, `afterSwapReturnDelta`. It cannot touch liquidity.
+
+| Function | Who | What |
+|---|---|---|
+| `registerPool(key, payroll, shareBps)` | anyone, before the pool is initialized | The caller becomes the pool owner. The pool must use the dynamic-fee flag. |
+| `setPayroll(key, payroll, shareBps)` | pool owner | Route a share of the swap fee (max 50 %) to a payroll address. 0 = no share. |
+| `setOwner(key, owner)` | pool owner | Hand over the pool. |
+| `quoteFee(key)` | view | Fee for the next swap: total, LP part, payroll part, and the current volatility. |
+| `pools(id)`, `vol(id)`, `lastSwapBlock(id, address)` | view | |
+
+- **Dynamic fee.** On the first swap of each block the hook records how many ticks the price moved since the last observation and keeps a moving average. Fee = `minFee + volatility × feePerTick`, capped at `maxFee`. Deployed with 0.05 %, 1 % and 0.005 % per tick. Nobody sets the fee by hand.
+- **One swap per block per address** (`tx.origin`), using the real L2 block number from the ArbSys precompile.
+- **Payroll share.** The LP fee is lowered by the share and the same amount is taken from the swap output and sent to payroll, so the swapper pays the same total fee.
+
+## NounyLPVault (one per wallet and pool, via NounyLPVaultFactory)
+
+Holds one liquidity position. Tokens only leave the vault through the owner.
+
+| Function | Who | What |
+|---|---|---|
+| `rebalance(lower, upper)` | operator (agent) or owner | Removes the liquidity and adds everything the vault holds into the new range. |
+| `exit()` | owner | Pulls all liquidity back into the vault. No price checks: the owner can always get out. |
+| `withdraw(token, amount, to)` | owner | Sends idle tokens out (`type(uint256).max` = all). Works while paused. |
+| `setPaused(bool)` / `setOperator(address)` | owner | Stop the agent, or replace / revoke (`address(0)`) it. |
+| `setParams(minWidth, maxWidth, minInterval, maxDeviationBps)` | owner | Range width bounds (ticks), minimum time between agent rebalances, max pool-vs-oracle gap (≤ 10 %). |
+| `prices()`, `positionAmounts()`, `poolKey()` | view | Pool tick, pool and oracle price; tokens in the position. |
+
+Every **agent** rebalance is checked: the pool price must be within `maxDeviationBps` of the Chainlink price, the vault must not be paused, at least `minInterval` must have passed, and the current tick must lie inside the new range, whose width is within `[minWidth, maxWidth]`. Fees earned are added back into the position on each rebalance.
+
+**Deposits** are plain token transfers to the vault; the agent puts them to work on its next run.
+
+## NounyLPVaultFactory
+
+`createVault(key, feed0, feed1, maxStaleness, minWidth, maxWidth, minInterval, maxDeviationBps)` creates the caller's vault for that pool (one per wallet and pool). `vaultOf(owner, poolId)`, `vaultCount()`, `vaults(start, count)`. The admin can only change the operator given to **new** vaults (`setDefaultOperator`), never existing ones.
+
+## NounySwapRouter
+
+`swapExactIn(key, zeroForOne, amountIn, minAmountOut, deadline)`: pulls exactly `amountIn` from the caller (approve first), swaps in the v4 pool and sends the output to the caller. Reverts if the deadline passed or the output is below `minAmountOut`. Holds no funds and has no owner.

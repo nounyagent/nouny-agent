@@ -1,0 +1,32 @@
+{
+  "network": "robinhood",
+  "chainId": 4663,
+  "hook": "0xB4aaB55e82646A63fD2774405c0356Da4652a0C4",
+  "hookArgs": [
+    500,
+    10000,
+    50
+  ],
+  "salt": "0x000000000000000000000000000000000000000000000000000001a1d9a65d16",
+  "poolId": "0x0f1b6d9e3fb170d7270cf8f448b7d72364fd58d22c164e312ff81a541f5d210e",
+  "poolOwner": "0x6259FDa1e2eb26A6d368305D26899bB354F78799",
+  "lpFactory": "0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE",
+  "operator": "0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2",
+  "pools": [
+    {
+      "label": "WETH / USDG",
+      "currency0": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+      "currency1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "symbol0": "WETH",
+      "symbol1": "USDG",
+      "decimals0": 18,
+      "decimals1": 6,
+      "tickSpacing": 60,
+      "hooks": "0xB4aaB55e82646A63fD2774405c0356Da4652a0C4",
+      "feed0": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+      "feed1": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2"
+    }
+  ],
+  "deployedAt": "2026-11-14T10:41:43.650Z",
+  "router": "0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9"
+}
