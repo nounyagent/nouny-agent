@@ -1,6 +1,6 @@
 # NOUNY user guide
 
-App: **https://neon-pavlova-0e2659.netlify.app** · each feature has its own page: [Agents](https://neon-pavlova-0e2659.netlify.app/agents), [Markets](https://neon-pavlova-0e2659.netlify.app/markets), [Pools](https://neon-pavlova-0e2659.netlify.app/pools), [Payroll](https://neon-pavlova-0e2659.netlify.app/payroll), [Leaderboard](https://neon-pavlova-0e2659.netlify.app/leaderboard), [$NOUNY](https://neon-pavlova-0e2659.netlify.app/token), [Docs](https://neon-pavlova-0e2659.netlify.app/docs).
+App: **https://nounyagent.com** · each feature has its own page: [Agents](https://nounyagent.com/agents), [Markets](https://nounyagent.com/markets), [Pools](https://nounyagent.com/pools), [Payroll](https://nounyagent.com/payroll), [Leaderboard](https://nounyagent.com/leaderboard), [$NOUNY](https://nounyagent.com/token), [Docs](https://nounyagent.com/docs).
 
 1. [Connect your wallet](#1-connect-your-wallet)
 2. [Build a paper agent](#2-build-a-paper-agent)
@@ -28,7 +28,7 @@ Your wallet asks you to **sign a message** ("Sign in with Ethereum"). This prove
 
 Paper agents trade **virtual money** ($10,000 each) on **real prices**. Use them to try strategies before risking anything.
 
-1. Go to **[Agent Studio](https://neon-pavlova-0e2659.netlify.app/agents)**.
+1. Go to **[Agent Studio](https://nounyagent.com/agents)**.
 2. **Name**: 3–32 letters or numbers.
 3. **Strategy**: see [Strategies](#3-strategies). Each one has a few settings; the defaults are sensible.
 4. **Mode**: *Paper*.
@@ -110,7 +110,7 @@ Even if the NOUNY website went offline, you could still withdraw by calling `wit
 
 Pay people in USDG on a schedule.
 
-1. Open **[Payroll](https://neon-pavlova-0e2659.netlify.app/payroll)** and click **Create payroll vault** (one per wallet).
+1. Open **[Payroll](https://nounyagent.com/payroll)** and click **Create payroll vault** (one per wallet).
 2. **Deposit** USDG.
 3. **Add recipient**: their wallet address, amount, schedule (**weekly**, **every 2 weeks** or **monthly** = every 30 days) and the date of the first payment (empty = now).
 4. That's it. The NOUNY bot checks every hour and pays each salary when it is due.
@@ -121,7 +121,7 @@ Only you can add or remove recipients and withdraw. The bot, or anyone else, can
 
 ## 9. Hooked pool: swap and provide liquidity
 
-Open **[Pools](https://neon-pavlova-0e2659.netlify.app/pools)**. The pool is **WETH / USDG** on Uniswap v4 with the NOUNY hook: its fee rises when the price moves fast and falls when markets are calm (0.05 % to 1 %), and each address can swap only once per block.
+Open **[Pools](https://nounyagent.com/pools)**. The pool is **WETH / USDG** on Uniswap v4 with the NOUNY hook: its fee rises when the price moves fast and falls when markets are calm (0.05 % to 1 %), and each address can swap only once per block.
 
 **Swap**
 

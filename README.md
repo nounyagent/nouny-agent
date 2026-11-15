@@ -8,8 +8,8 @@ Your funds stay in a vault that <b>only you</b> control.
 </p>
 
 <p align="center">
-<a href="https://neon-pavlova-0e2659.netlify.app">Open the app</a> ·
-<a href="https://neon-pavlova-0e2659.netlify.app/docs">Website docs</a> ·
+<a href="https://nounyagent.com">Open the app</a> ·
+<a href="https://nounyagent.com/docs">Website docs</a> ·
 <a href="docs/USER-GUIDE.md">User guide</a> ·
 <a href="docs/CONTRACTS.md">Contracts</a> ·
 <a href="docs/SECURITY.md">Security</a> ·
@@ -27,16 +27,16 @@ Your funds stay in a vault that <b>only you</b> control.
 | **Payroll** | A payroll vault that pays salaries in USDG automatically — weekly, every 2 weeks or monthly. | Real (USDG) |
 | **Hooked pool** | A WETH / USDG Uniswap v4 pool whose fee follows volatility. **Swap** in it, or open an **LP vault** that the agent keeps in range. | Real (WETH, USDG) |
 
-Each feature has its own page on the website: [Agents](https://neon-pavlova-0e2659.netlify.app/agents) · [Markets](https://neon-pavlova-0e2659.netlify.app/markets) · [Pools](https://neon-pavlova-0e2659.netlify.app/pools) · [Payroll](https://neon-pavlova-0e2659.netlify.app/payroll) · [Leaderboard](https://neon-pavlova-0e2659.netlify.app/leaderboard) · [$NOUNY](https://neon-pavlova-0e2659.netlify.app/token).
+Each feature has its own page on the website: [Agents](https://nounyagent.com/agents) · [Markets](https://nounyagent.com/markets) · [Pools](https://nounyagent.com/pools) · [Payroll](https://nounyagent.com/payroll) · [Leaderboard](https://nounyagent.com/leaderboard) · [$NOUNY](https://nounyagent.com/token).
 
 Markets for agents: crypto (BTC, ETH, SOL, …), perpetuals (paper only) and stocks — **AAPL, NVDA, TSLA, MSFT, AMZN, GOOGL, META, SPY, QQQ, COIN**.
 
 ## Quick start
 
-1. Open **[the app](https://neon-pavlova-0e2659.netlify.app)** and click **Connect wallet** (MetaMask, OKX Wallet, Rabby, Coinbase Wallet…). You only sign a message — no transaction, no fee.
-2. In **[Agent Studio](https://neon-pavlova-0e2659.netlify.app/agents)**, name an agent, pick a strategy and a market, and click **Backtest & launch**. It starts in **paper** mode.
+1. Open **[the app](https://nounyagent.com)** and click **Connect wallet** (MetaMask, OKX Wallet, Rabby, Coinbase Wallet…). You only sign a message — no transaction, no fee.
+2. In **[Agent Studio](https://nounyagent.com/agents)**, name an agent, pick a strategy and a market, and click **Backtest & launch**. It starts in **paper** mode.
 3. For real money: create your **vault**, deposit **USDG** on Robinhood Chain and create an agent in **Live** mode.
-4. To swap or provide liquidity in the hooked pool, open **[Pools](https://neon-pavlova-0e2659.netlify.app/pools)**.
+4. To swap or provide liquidity in the hooked pool, open **[Pools](https://nounyagent.com/pools)**.
 
 Step-by-step instructions, with what each button does: **[docs/USER-GUIDE.md](docs/USER-GUIDE.md)**.
 
