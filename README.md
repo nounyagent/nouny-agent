@@ -25,7 +25,8 @@ Your funds stay in a vault that <b>only you</b> control.
 | **Paper agents** | Build an agent (momentum, mean reversion or moving-average crossover), backtest it on real prices and let it run every hour. | Virtual $10,000 |
 | **Live agents** | The same agent trades **your own on-chain vault** through Uniswap on Robinhood Chain: ETH, BTC and 10 Robinhood Stock Tokens against USDG. | Real (USDG) |
 | **Payroll** | A payroll vault that pays salaries in USDG automatically — weekly, every 2 weeks or monthly. | Real (USDG) |
-| **Hooked pool** | A WETH / USDG Uniswap v4 pool whose fee follows volatility. **Swap** in it, or open an **LP vault** that the agent keeps in range. | Real (WETH, USDG) |
+| **Swap** | Swap WETH ↔ USDG on the Pools page through Uniswap V3, at the best of its fee tiers for your amount. No NOUNY fee. | Real (WETH, USDG) |
+| **Hooked pool** | A WETH / USDG Uniswap v4 pool whose fee follows volatility. Open an **LP vault** that the agent keeps in range. | Real (WETH, USDG) |
 
 Each feature has its own page on the website: [Agents](https://nounyagent.com/agents) · [Markets](https://nounyagent.com/markets) · [Pools](https://nounyagent.com/pools) · [Payroll](https://nounyagent.com/payroll) · [Leaderboard](https://nounyagent.com/leaderboard) · [$NOUNY](https://nounyagent.com/token).
 
@@ -36,7 +37,7 @@ Markets for agents: crypto (BTC, ETH, SOL, …), perpetuals (paper only) and sto
 1. Open **[the app](https://nounyagent.com)** and click **Connect wallet** (MetaMask, OKX Wallet, Rabby, Coinbase Wallet…). You only sign a message — no transaction, no fee.
 2. In **[Agent Studio](https://nounyagent.com/agents)**, name an agent, pick a strategy and a market, and click **Backtest & launch**. It starts in **paper** mode.
 3. For real money: create your **vault**, deposit **USDG** on Robinhood Chain and create an agent in **Live** mode.
-4. To swap or provide liquidity in the hooked pool, open **[Pools](https://nounyagent.com/pools)**.
+4. To swap WETH ↔ USDG (through Uniswap V3) or provide liquidity to the hooked pool, open **[Pools](https://nounyagent.com/pools)**.
 
 Step-by-step instructions, with what each button does: **[docs/USER-GUIDE.md](docs/USER-GUIDE.md)**.
 

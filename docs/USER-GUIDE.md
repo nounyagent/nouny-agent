@@ -10,7 +10,7 @@ App: **https://nounyagent.com** · each feature has its own page: [Agents](https
 6. [Run a live agent](#6-run-a-live-agent)
 7. [Withdraw, pause or stop](#7-withdraw-pause-or-stop)
 8. [Payroll](#8-payroll)
-9. [Hooked pool: swap and provide liquidity](#9-hooked-pool-swap-and-provide-liquidity)
+9. [Pools: swap and provide liquidity](#9-pools-swap-and-provide-liquidity)
 10. [Fees and limits](#10-fees-and-limits)
 11. [Troubleshooting](#11-troubleshooting)
 
@@ -119,15 +119,21 @@ The card shows the balance, the monthly cost and the **runway** (how many months
 
 Only you can add or remove recipients and withdraw. The bot, or anyone else, can only trigger a payment that is due, to the address and amount you set, once per period.
 
-## 9. Hooked pool: swap and provide liquidity
+## 9. Pools: swap and provide liquidity
 
-Open **[Pools](https://nounyagent.com/pools)**. The pool is **WETH / USDG** on Uniswap v4 with the NOUNY hook: its fee rises when the price moves fast and falls when markets are calm (0.05 % to 1 %), and each address can swap only once per block.
+Open **[Pools](https://nounyagent.com/pools)**.
 
-**Swap**
+**Swap WETH ↔ USDG**
 
-1. In the **Swap** card, pick the direction (the ⇄ button) and enter an amount. The card shows what you receive, the current hook fee and the minimum you will get (1 % below the quote).
-2. The first time, click **Approve** for the token you pay with.
-3. Click **Swap** and confirm. If the price moves more than 1 % before your transaction lands, it reverts and nothing is traded.
+Swaps on this page go through **Uniswap V3**, using Uniswap's official SwapRouter02 and QuoterV2 on Robinhood Chain. For your amount, the site quotes the 0.01 %, 0.05 % and 0.3 % WETH / USDG pools and uses the one that returns the most. NOUNY adds no fee; you pay only that pool's fee and gas.
+
+1. In the **Swap** card, pick the direction (the ⇄ button) and enter an amount. The card shows what you receive, the Uniswap pool fee and the minimum you will get (1 % below the quote).
+2. The first time, click **Approve** for the token you pay with. The approval is for the Uniswap SwapRouter02.
+3. Click **Swap** and confirm in your wallet. The tokens go straight to your wallet. If the price moves more than 1 % before your transaction lands, or it lands more than 10 minutes later, it reverts and nothing is traded.
+
+**The hooked pool**
+
+NOUNY also runs a **WETH / USDG** pool on Uniswap v4 with the NOUNY hook: its fee rises when the price moves fast and falls when markets are calm (0.05 % to 1 %), and each address can swap only once per block. Liquidity in it comes from LP vaults (below).
 
 **Provide liquidity with an LP vault**
 
@@ -158,6 +164,8 @@ Providing liquidity has risk: when the price moves, the position ends up holding
 | "price moved too much (slippage guard)" | The pool price was worse than your max slippage versus the oracle. Nothing was traded. |
 | "oracle price is paused or stale" | Usually a stock on a weekend. The agent retries every hour. |
 | "agent access to the vault was revoked" / "vault is paused" | Use **Give agent access** / **Resume vault**. |
-| "One swap per block" | You (or a transaction from your address) already swapped in this pool in the current block. Try again a second later. |
+| "Not enough liquidity on Uniswap for this amount" (swap) | No Uniswap V3 WETH / USDG pool can fill that size. Try a smaller amount. |
+| "Too little received" (swap) | The price moved more than 1 % between the quote and your transaction. Nothing was traded; get a fresh quote and try again. |
+| "One swap per block" (hooked pool) | Your address already swapped in the hooked pool in the current block. Try again a second later. |
 | "Price is too far from the oracle" (LP vault) | The pool price differs from Chainlink by more than your limit, so the agent waits. Nothing is moved. |
 | A due salary was not paid | Check the payroll balance; it is paid within the hour after you deposit. |
