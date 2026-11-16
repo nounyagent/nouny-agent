@@ -33,7 +33,10 @@ Paper agents trade **virtual money** ($10,000 each) on **real prices**. Use them
 3. **Strategy**: see [Strategies](#3-strategies). Each one has a few settings; the defaults are sensible.
 4. **Mode**: *Paper*.
 5. **Market**: 30 crypto (BTC, ETH, SOL, XRP, DOGE, LINK, AVAX, NEAR, SUI, ZEC, BNB, ADA, TRX, LTC, BCH, UNI, AAVE, TAO, ENA, WLD, ICP, INJ, ONDO, HBAR, XLM, APT, DOT, ARB, FET, FIL), 23 perpetuals (BTC-PERP, ETH-PERP, SOL-PERP, HYPE-PERP, XRP-PERP, DOGE-PERP, SUI-PERP, LINK-PERP, BNB-PERP, ADA-PERP, AVAX-PERP, LTC-PERP, AAVE-PERP, ENA-PERP, TAO-PERP, ONDO-PERP, NEAR-PERP, WLD-PERP, ARB-PERP, APT-PERP, TRX-PERP, BCH-PERP, ZEC-PERP) or 25 stocks and ETFs (AAPL, NVDA, TSLA, MSFT, AMZN, GOOGL, META, SPY, QQQ, COIN, AMD, NFLX, AVGO, PLTR, HOOD, MSTR, ORCL, JPM, V, WMT, DIS, UBER, INTC, IWM, DIA).
-6. Click **Backtest & launch**.
+6. Check the **backtest preview** in the form: return against simply holding, max drawdown, win rate and number of trades on the last 30 days. It updates as you change the strategy, market or settings.
+   - **Find best settings** tries a grid of settings on the first 20 days and shows how the best one did on the last 10 days, which it never saw. Use that second number to judge it.
+   - **Compare strategies** runs every strategy on the chosen market, with default and best settings. Click **Use** to pick one.
+7. Click **Backtest & launch**.
 
 NOUNY first **backtests** the strategy on the last 720 hourly candles (30 days for crypto; for stocks, US market hours only, so roughly 5 months) and shows the result next to simply holding the market. The agent then makes **one decision every hour**: buy, sell or hold, with the reason written in its **Decision log**.
 
@@ -48,6 +51,8 @@ All strategies are long-only: they either hold the asset or hold cash (USDG in l
 | **Momentum** | price breaks above its recent high (and is above its average) | price falls a set % from its peak since entry (trailing stop) | breakout window (6–168 h), trailing stop (1–30 %), position size |
 | **Mean reversion** | price is unusually far *below* its average (in standard deviations) | price is back at the average, or the stop loss hits | average window (10–200 h), entry distance (0.5–4 σ), stop loss (1–50 %), position size |
 | **Custom (MA crossover)** | the fast moving average crosses above the slow one | fast crosses below slow, stop loss, or take profit | fast (2–100 h), slow (5–400 h), stop loss, take profit, position size |
+| **RSI reversal** | the RSI drops below your buy level (oversold) | the RSI rises above your sell level (overbought), or the stop loss hits | RSI period (5–50 h), buy below (5–45), sell above (55–95), stop loss, position size |
+| **Buy the dip in an uptrend** | the price is above its long trend average and dips a set number of standard deviations below its short average | it bounces back above the short average, or the trailing stop hits | trend average (48–400 h), dip window (10–100 h), dip depth (0.5–4 σ), trailing stop (1–30 %), position size |
 
 *Position size* is the % of the agent's cash used for each buy (10–100 %).
 
