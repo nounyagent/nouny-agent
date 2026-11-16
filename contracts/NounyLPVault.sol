@@ -54,6 +54,7 @@ contract NounyLPVault is IUnlockCallback {
     bool public paused;
     uint24 public minWidth; // ticks
     uint24 public maxWidth; // ticks
+    uint32 public constant MIN_INTERVAL = 15 minutes;
     uint32 public minInterval; // seconds between agent rebalances
     uint16 public maxDeviationBps; // pool vs oracle price
 
@@ -142,6 +143,7 @@ contract NounyLPVault is IUnlockCallback {
 
     /// @notice Withdraw idle tokens (call `exit` first to include the position). `type(uint256).max` = everything.
     function withdraw(address token, uint256 amount, address to) external onlyOwner {
+        if (to == address(0)) revert BadParams(); // review I-8
         if (amount == type(uint256).max) amount = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransfer(to, amount);
         emit Withdrawn(token, to, amount);
@@ -267,7 +269,8 @@ contract NounyLPVault is IUnlockCallback {
     }
 
     function _setParams(uint24 minWidth_, uint24 maxWidth_, uint32 minInterval_, uint16 maxDeviationBps_) internal {
-        if (minWidth_ == 0 || minWidth_ > maxWidth_ || maxDeviationBps_ == 0 || maxDeviationBps_ > MAX_DEVIATION_CAP_BPS) {
+        // at least MIN_INTERVAL between agent moves, so a compromised operator cannot churn the position (review I-7)
+        if (minWidth_ == 0 || minWidth_ > maxWidth_ || maxDeviationBps_ == 0 || maxDeviationBps_ > MAX_DEVIATION_CAP_BPS || minInterval_ < MIN_INTERVAL) {
             revert BadParams();
         }
         minWidth = minWidth_;
@@ -285,12 +288,15 @@ contract NounyLPVaultFactory {
 
     IPoolManager public immutable poolManager;
     address public admin;
+    address public pendingAdmin;
     address public defaultOperator;
     mapping(address owner => mapping(PoolId => address)) public vaultOf;
     address[] private _all;
 
     event VaultCreated(address indexed owner, PoolId indexed poolId, address vault);
     event DefaultOperatorChanged(address operator);
+    event AdminTransferStarted(address indexed pendingAdmin);
+    event AdminTransferred(address indexed admin);
 
     error NotAdmin();
     error VaultExists(address vault);
@@ -339,5 +345,19 @@ contract NounyLPVaultFactory {
         if (msg.sender != admin) revert NotAdmin();
         defaultOperator = operator_;
         emit DefaultOperatorChanged(operator_);
+    }
+
+    /// @notice Two-step admin handover (review I-8): the new admin must accept.
+    function transferAdmin(address next) external {
+        if (msg.sender != admin) revert NotAdmin();
+        pendingAdmin = next;
+        emit AdminTransferStarted(next);
+    }
+
+    function acceptAdmin() external {
+        if (msg.sender != pendingAdmin || pendingAdmin == address(0)) revert NotAdmin();
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
+        emit AdminTransferred(admin);
     }
 }

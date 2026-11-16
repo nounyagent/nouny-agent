@@ -22,6 +22,48 @@ contract MockToken is ERC20 {
     }
 }
 
+/// @notice Token with an issuer freeze list (like USDG's isFrozen): transfers to or from a frozen address revert.
+contract MockFreezableToken is ERC20 {
+    mapping(address => bool) public isFrozen;
+
+    constructor() ERC20("Freezable", "FRZ") {}
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function freeze(address a, bool f) external {
+        isFrozen[a] = f;
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        require(!isFrozen[from] && !isFrozen[to], "frozen");
+        super._update(from, to, value);
+    }
+}
+
+/// @notice Stand-in for the ArbSys precompile (0x64): returns a settable L2 block number. Its runtime code is
+///         put at 0x64 with hardhat_setCode, so 0x64 has code, as it does on Robinhood Chain (0xfe).
+contract MockArbSys {
+    function arbBlockNumber() external view returns (uint256) {
+        uint256 n;
+        assembly {
+            n := sload(0)
+        }
+        return n;
+    }
+
+    function set(uint256 n) external {
+        assembly {
+            sstore(0, n)
+        }
+    }
+}
+
 contract MockFeed {
     uint8 public decimals;
     int256 public answer;

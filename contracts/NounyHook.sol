@@ -67,6 +67,7 @@ contract NounyHook is IHooks {
     event PayrollChanged(PoolId indexed id, address payroll, uint16 shareBps);
     event OwnerChanged(PoolId indexed id, address owner);
     event PayrollPaid(PoolId indexed id, address indexed payroll, Currency currency, uint256 amount);
+    event PayrollSkipped(PoolId indexed id, address indexed payroll, Currency currency, uint256 amount);
 
     error NotPoolManager();
     error NotPoolOwner();
@@ -150,10 +151,13 @@ contract NounyHook is IHooks {
 
     // ------------------------------------------------------------------ hooks
 
-    function beforeInitialize(address, PoolKey calldata key, uint160) external onlyPoolManager returns (bytes4) {
+    function beforeInitialize(address sender, PoolKey calldata key, uint160) external onlyPoolManager returns (bytes4) {
         if (key.fee != LPFeeLibrary.DYNAMIC_FEE_FLAG) revert NotDynamicFee();
         PoolConfig storage c = pools[key.toId()];
         if (c.owner == address(0)) revert NotRegistered();
+        // only the registrant may initialize, so registering a key someone else is about to use gains nothing
+        // (review I-5)
+        if (sender != c.owner) revert NotPoolOwner();
         if (c.initialized) revert AlreadyInitialized();
         c.initialized = true;
         return IHooks.beforeInitialize.selector;
@@ -212,19 +216,25 @@ contract NounyHook is IHooks {
 
         PoolId id = key.toId();
         address payroll = pools[id].payroll;
-        poolManager.take(c, payroll, amount);
-        emit PayrollPaid(id, payroll, c, amount);
-        return (IHooks.afterSwap.selector, amount.toInt128());
+        // A payroll address that cannot receive this currency must not block swaps (review I-6): if the transfer
+        // fails, the share is simply not taken for this swap and the swapper keeps it.
+        try poolManager.take(c, payroll, amount) {
+            emit PayrollPaid(id, payroll, c, amount);
+            return (IHooks.afterSwap.selector, amount.toInt128());
+        } catch {
+            emit PayrollSkipped(id, payroll, c, amount);
+            return (IHooks.afterSwap.selector, 0);
+        }
     }
 
     // ------------------------------------------------------------------ internal
 
+    /// @dev Always ask ArbSys: on Arbitrum chains such as Robinhood Chain it answers with the L2 block number (its
+    ///      account holds the placeholder code 0xfe, so a code-length check must not gate the call: review L-3).
+    ///      Elsewhere the call returns no data and we fall back to block.number.
     function _l2Block() internal view returns (uint256) {
-        if (ARB_SYS.code.length == 0) {
-            // ArbSys is a precompile (no code) on Arbitrum; try it, fall back to block.number elsewhere
-            (bool ok, bytes memory out) = ARB_SYS.staticcall(abi.encodeCall(IArbSys.arbBlockNumber, ()));
-            if (ok && out.length == 32) return abi.decode(out, (uint256));
-        }
+        (bool ok, bytes memory out) = ARB_SYS.staticcall(abi.encodeCall(IArbSys.arbBlockNumber, ()));
+        if (ok && out.length == 32) return abi.decode(out, (uint256));
         return block.number;
     }
 

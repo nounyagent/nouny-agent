@@ -25,7 +25,9 @@ const check = (name, cond, extra = '') => {
 function compiled(name, file = name) {
   const dir = path.join(__dirname, '..', 'artifacts', 'build-info');
   if (!fs.existsSync(dir)) return null;
-  for (const f of fs.readdirSync(dir)) {
+  // newest build first: older build-info files can still hold earlier versions of a contract
+  const files = fs.readdirSync(dir).sort((x, y) => fs.statSync(path.join(dir, y)).mtimeMs - fs.statSync(path.join(dir, x)).mtimeMs);
+  for (const f of files) {
     const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).output.contracts[`contracts/${file}.sol`]?.[name];
     if (c) return c.evm.deployedBytecode;
   }
@@ -93,6 +95,23 @@ async function sameCode(name, address, file) {
   await sameCode('NounyHook', hooked.hook);
   await sameCode('NounyLPVaultFactory', hooked.lpFactory, 'NounyLPVault');
   await sameCode('NounySwapRouter', hooked.router);
+
+  // NounyHook's "one swap per block" must use the L2 block (ArbSys), not block.number, which on Arbitrum chains is
+  // the L1 block. A Hardhat fork cannot show this, so run the hook's block logic on the live chain with eth_call.
+  const probe = (() => {
+    const dir = path.join(__dirname, '..', 'artifacts', 'build-info');
+    if (!fs.existsSync(dir)) return null;
+    for (const f of fs.readdirSync(dir)) {
+      const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).output.contracts['contracts/tools/L2BlockProbe.sol']?.L2BlockProbe;
+      if (c) return '0x' + c.evm.bytecode.object;
+    }
+    return null;
+  })();
+  if (!probe) console.log('SKIP  L2 block check (run "npm run build" first)');
+  else {
+    const [codeLen, l1, l2, used] = ethers.AbiCoder.defaultAbiCoder().decode(['uint256', 'uint256', 'uint256', 'uint256'], await p.call({ data: probe }));
+    check('hook block logic uses the L2 block (ArbSys)', used === l2 && l2 > 0n, `L2 ${l2} · block.number ${l1} · code at 0x64: ${codeLen} byte(s)`);
+  }
 
   console.log(ok ? '\nDeployment matches this repository.' : '\nMISMATCH — do not trust this deployment.');
   if (!ok) process.exitCode = 1;

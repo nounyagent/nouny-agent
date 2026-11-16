@@ -14,7 +14,7 @@ Sources: [`contracts/`](../contracts). Solidity 0.8.24, OpenZeppelin 5.1.0, comp
 | `swap(tokenIn, tokenOut, feeTier, amountIn, minOut)` | operator | Uniswap V3 `exactInputSingle`, output always back to the vault. |
 | `remainingDailyUsd()`, `priceUsd(token)`, `allowedTokens()` | view | |
 
-Every swap: oracle-computed minimum output (`maxSlippageBps` vs Chainlink), stale (`maxStaleness`) or non-positive prices rejected, pool fee tier pinned per token, daily USD cap, exact router approval reset to 0, vault balance checked before and after.
+Every swap is against the base token (USDG): oracle-computed minimum output (`maxSlippageBps` vs Chainlink), stale (`maxStaleness`) or non-positive prices rejected, pool fee tier pinned per token, daily USD cap, exact router approval reset to 0, vault balance checked before and after.
 
 ## AgentVaultFactory
 
@@ -24,11 +24,12 @@ Every swap: oracle-computed minimum output (`maxSlippageBps` vs Chainlink), stal
 
 | Function | Who | What |
 |---|---|---|
-| `addRecipient(to, amount, interval, firstPayAt)` | owner | Interval 1–366 days, first payment within a year (0 = now). Max 100 recipients. |
+| `addRecipient(to, amount, interval, firstPayAt)` | owner | Interval 1–366 days, first payment within a year (0 = now). Max 100 active recipients (removing one frees its place). |
 | `updateRecipient(id, amount, interval, nextPayAt)` / `removeRecipient(id)` | owner | Recipient address is fixed. |
-| `withdraw(amount)` (`type(uint256).max` = all), `rescue(token, amount)`, `setPaused(bool)` | owner | |
+| `withdraw(amount)` (`type(uint256).max` = all), `rescue(token, amount)`, `setPaused(bool)` | owner | Pausing defers payments; after `setPaused(false)` missed periods can be paid. |
+| `resumeAndSkipMissed()` | owner | Unpause and move overdue recipients to their next future date, without paying the missed periods. |
 | `pay(id)` | anyone | Pays one due period; reverts if not due or balance too low. |
-| `payAllDue()` | anyone | Pays every due recipient once; skips (event `Skipped`) those the balance cannot cover. |
+| `payAllDue()` | anyone | Pays every due recipient once; skips those the balance cannot cover (`Skipped`) and those whose transfer fails (`PaymentFailed`, period stays due). |
 | `getRecipients()`, `dueNow()` | view | |
 
 ## PayrollFactory
@@ -47,15 +48,15 @@ A hook runs inside the Uniswap v4 PoolManager on every swap of the pools that us
 
 | Function | Who | What |
 |---|---|---|
-| `registerPool(key, payroll, shareBps)` | anyone, before the pool is initialized | The caller becomes the pool owner. The pool must use the dynamic-fee flag. |
+| `registerPool(key, payroll, shareBps)` | anyone, before the pool is initialized | The caller becomes the pool owner and is the only one who can initialize it. The pool must use the dynamic-fee flag. |
 | `setPayroll(key, payroll, shareBps)` | pool owner | Route a share of the swap fee (max 50 %) to a payroll address. 0 = no share. |
 | `setOwner(key, owner)` | pool owner | Hand over the pool. |
 | `quoteFee(key)` | view | Fee for the next swap: total, LP part, payroll part, and the current volatility. |
 | `pools(id)`, `vol(id)`, `lastSwapBlock(id, address)` | view | |
 
 - **Dynamic fee.** On the first swap of each block the hook records how many ticks the price moved since the last observation and keeps a moving average. Fee = `minFee + volatility × feePerTick`, capped at `maxFee`. Deployed with 0.05 %, 1 % and 0.005 % per tick. Nobody sets the fee by hand.
-- **One swap per block per address** (`tx.origin`), using the real L2 block number from the ArbSys precompile.
-- **Payroll share.** The LP fee is lowered by the share and the same amount is taken from the swap output and sent to payroll, so the swapper pays the same total fee.
+- **One swap per block per address** (`tx.origin`), using the real L2 block number from the ArbSys precompile (always called; on chains without it the hook falls back to `block.number`).
+- **Payroll share.** The LP fee is lowered by the share and the same amount is taken from the swap output and sent to payroll, so the swapper pays the same total fee. If the payroll address cannot receive, the share is skipped and the swap still goes through.
 
 ## NounyLPVault (one per wallet and pool, via NounyLPVaultFactory)
 

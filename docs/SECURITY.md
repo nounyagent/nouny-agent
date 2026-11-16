@@ -63,9 +63,9 @@ AgentVault:
 2. A successful swap delivers at least `oracleExpectedOut × (1 − maxSlippageBps / 10,000)`, whatever minimum the operator passes and whatever the router reports.
 3. A swap changes vault balances by exactly `−amountIn` of `tokenIn` and `+amountOut` of `tokenOut`.
 4. The oracle value of successful swaps within a 24-hour window never exceeds `dailyLimitUsd`.
-5. Swaps only use the pool fee tier pinned for the pair.
+5. Swaps are always against the base token (USDG) and only use the pool fee tier pinned for the token.
 6. The router approval is 0 after every swap.
-7. Stale (older than `maxStaleness`), future-dated or non-positive oracle answers make `swap` revert.
+7. Stale (older than `maxStaleness`), future-dated or non-positive oracle answers make `swap` revert. Registering a token only needs the feed to answer a positive price, so vaults can be created while stock feeds pause at weekends.
 8. Factory changes never alter an existing vault, and the factory's token / oracle / pool list cannot change.
 9. The owner can always withdraw, including while paused or with the operator revoked.
 
@@ -74,6 +74,8 @@ PayrollVault:
 1. Payments only go to an address the owner registered, for the amount the owner set.
 2. Each recipient is paid at most once per interval: `pay` / `payAllDue` move `nextPayAt` forward by one interval per payment.
 3. Only the owner can add, change or remove recipients, pause, or withdraw; the owner can withdraw at any time.
+4. At most 100 recipients are active at once; removing one frees its place.
+5. In `payAllDue`, a recipient whose transfer fails (for example an address frozen by the token issuer) is skipped with `PaymentFailed` and its period stays due; the others are still paid.
 
 NounyLPVault:
 
@@ -86,7 +88,8 @@ NounyHook:
 
 1. The fee is always between `minFee` and `maxFee` and is computed on-chain; nobody can set it by hand.
 2. An address can swap at most once per L2 block in a hooked pool.
-3. The payroll share is at most 50 % of the fee, and only the pool owner can change it.
+3. The payroll share is at most 50 % of the fee, and only the pool owner can change it. If the payroll address cannot receive, the share is skipped (`PayrollSkipped`) and the swap goes through.
+4. Only the address that registered a pool can initialize it.
 
 Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.test.js`](../test/fuzz.test.js), which uses oracle moves, cheating routers, unauthorized callers and time jumps. Payroll limits are fuzzed in [`test/Payroll.test.js`](../test/Payroll.test.js). The hooked-pool rules are tested against a local v4 PoolManager in [`test/NounyHook.test.js`](../test/NounyHook.test.js), [`test/NounyLPVault.test.js`](../test/NounyLPVault.test.js) and [`test/NounySwapRouter.test.js`](../test/NounySwapRouter.test.js), and against the real PoolManager on a fork in [`test/hook-fork.test.js`](../test/hook-fork.test.js).
 
@@ -110,6 +113,29 @@ Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.
 | NV-14 | Info | The hook's fee settings (`minFee`, `maxFee`, `feePerTick`) are immutable; changing them needs a new hook and pool | By design |
 | NV-15 | Info | LP vaults and the swap router do not support native ETH; the pool uses WETH | By design |
 | NV-16 | Info | LP vault ownership cannot be transferred; a lost owner key locks the funds | By design |
+
+### Independent security review by HEY Research Lab (commit `0e1396a`, 16 Nov 2026)
+
+[HEY Research Lab](https://heyresearch.xyz) reviewed AgentVault, AgentVaultFactory, PayrollVault, PayrollFactory, NounyHook, NounySwapRouter, NounyLPVault and its factory at commit `0e1396a`. This is an independent security review, not an audit. It found no critical, high or medium issues; the main claims held (the vault bot cannot move value out, payroll only pays registered recipients when due, and the five deployed contracts matched the commit).
+
+All findings below are fixed in this repository. Because deployed contracts cannot be changed, the fixed AgentVaultFactory, PayrollFactory, NounyHook (with a new WETH / USDG pool) and NounyLPVaultFactory were redeployed on 16 Nov 2026 (addresses in the [README](../README.md)); NounySwapRouter did not change. HEY Research Lab re-tests the new deployments separately, and the result will be added here.
+
+| ID | Severity | Issue | Status |
+|---|---|---|---|
+| L-1 | Low | New AgentVaults could not be created for ~27–30 h each weekend: registering a token required a fresh price, and stock feeds pause | **Fixed**: registration only checks that the feed answers a positive price; `swap` still rejects stale prices |
+| L-2 | Low | Removed payroll recipients still counted toward the 100 cap | **Fixed**: the cap counts active recipients; a separate bound of 1,000 records keeps `payAllDue` within gas |
+| L-3 | Low | NounyHook's one-swap-per-block used the L1 block on Robinhood Chain (ArbSys holds code `0xfe`, which skipped the call) | **Fixed**: always asks ArbSys; `verify:deployment` now checks the live L2 block logic |
+| I-1 | Info | Token-to-token swaps could route through a pool a compromised bot creates at the pinned tier | **Fixed**: every swap must be against the base token (USDG) |
+| I-2 | Info | USDG feed heartbeat (24 h) close to its 25 h staleness limit | **Fixed**: USDG limit raised to 27 h in `config/robinhood.json` |
+| I-3 | Info | Unpausing a payroll lets every missed period be paid | **Fixed**: `resumeAndSkipMissed()` resumes without paying them; plain unpause keeps the catch-up behaviour (NV-11) |
+| I-4 | Info | One reverting transfer stopped `payAllDue` for everyone | **Fixed**: per-recipient skip with `PaymentFailed` |
+| I-5 | Info | Anyone who registered a pool key first became its owner | **Fixed**: only the registrant can initialize the pool |
+| I-6 | Info | A payroll address that cannot receive blocked one swap direction | **Fixed**: the share is skipped instead |
+| I-7 | Info | LP rebalance has no minimum amounts and `minInterval` could be 0 | **Fixed**: at least 15 minutes between agent moves; amounts stay bounded by the oracle band |
+| I-8 | Info | LP factory had no admin transfer; LP `withdraw` accepted `to = 0` | **Fixed**: two-step admin transfer; zero address rejected |
+| I-9 | Info | An old, empty vault (`0x2a07…AaF11`) still names the bot as operator | Owner action: call `setOperator(0x0000000000000000000000000000000000000000)` on that vault |
+
+The regression tests are in [`test/Review.test.js`](../test/Review.test.js).
 
 Robinhood Stock Tokens are issued by Robinhood and may carry their own transfer rules and regional availability. The fork tests confirm that a vault contract can hold, buy and sell the 10 listed stock tokens, but those token contracts are outside this scope.
 

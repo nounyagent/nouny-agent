@@ -1,16 +1,16 @@
 {
   "network": "robinhood",
   "chainId": 4663,
-  "hook": "0xB4aaB55e82646A63fD2774405c0356Da4652a0C4",
+  "hook": "0x4D3929B70b9A5bE6131cE6D4Cfa8999fc679E0c4",
   "hookArgs": [
     500,
     10000,
     50
   ],
-  "salt": "0x000000000000000000000000000000000000000000000000000001a1d9a65d16",
-  "poolId": "0x0f1b6d9e3fb170d7270cf8f448b7d72364fd58d22c164e312ff81a541f5d210e",
+  "salt": "0x000000000000000000000000000000000000000000000000000001a1e5bdf132",
+  "poolId": "0xe431f8b70b9d12557fed5dee6fc3f799b2312bf0248946528fa4aff5c71bef05",
   "poolOwner": "0x6259FDa1e2eb26A6d368305D26899bB354F78799",
-  "lpFactory": "0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE",
+  "lpFactory": "0x7823d963A7daB90Ae3D2a71415Dc10182D237c44",
   "operator": "0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2",
   "pools": [
     {
@@ -22,11 +22,20 @@
       "decimals0": 18,
       "decimals1": 6,
       "tickSpacing": 60,
-      "hooks": "0xB4aaB55e82646A63fD2774405c0356Da4652a0C4",
+      "hooks": "0x4D3929B70b9A5bE6131cE6D4Cfa8999fc679E0c4",
       "feed0": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
       "feed1": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2"
     }
   ],
-  "deployedAt": "2026-11-14T10:41:43.650Z",
-  "router": "0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9"
+  "deployedAt": "2026-11-16T19:03:16.316Z",
+  "router": "0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9",
+  "previous": [
+    {
+      "hook": "0xB4aaB55e82646A63fD2774405c0356Da4652a0C4",
+      "poolId": "0x0f1b6d9e3fb170d7270cf8f448b7d72364fd58d22c164e312ff81a541f5d210e",
+      "lpFactory": "0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE",
+      "replacedAt": "2026-11-16",
+      "reason": "HEY Research Lab review fixes (L-3, I-5, I-6, I-7, I-8)"
+    }
+  ]
 }

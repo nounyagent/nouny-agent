@@ -1,7 +1,7 @@
 {
   "network": "robinhood",
   "chainId": 4663,
-  "factory": "0x0315841Ff9eC63321Faa050e937FD8402053C090",
+  "factory": "0x842dB2d736F66A0132EaB3816C426Bc21bb746Ec",
   "operator": "0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2",
   "admin": "0x6259FDa1e2eb26A6d368305D26899bB354F78799",
   "tokens": [
@@ -19,10 +19,11 @@
     "QQQ",
     "COIN"
   ],
-  "deployTx": "0x6bf5b4e4f9f978244ad24c64150a7c580c7209d06e989192798b99a724ec0481",
+  "deployTx": "0x1e3751911d78c99cfb7e551a16f5da7d90975987723af9a39bb8b6307cf6b417",
   "fundTx": "0x7d0d1ab3ec89e080eaf40b3bbfa5a8f851f84eb797beaea772609a2bbf6aefb1",
   "previousFactories": [
-    "0x2bD4C69999C1eD04a9FAd6F3Fbae3904CCf0421E"
+    "0x2bD4C69999C1eD04a9FAd6F3Fbae3904CCf0421E",
+    "0x0315841Ff9eC63321Faa050e937FD8402053C090"
   ],
-  "deployedAt": "2026-11-13T22:28:52.986Z"
+  "deployedAt": "2026-11-16T19:01:14.677Z"
 }

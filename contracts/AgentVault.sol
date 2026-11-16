@@ -96,6 +96,7 @@ contract AgentVault is ReentrancyGuard {
     error StaleOraclePrice(address token);
     error InsufficientOutput(uint256 received, uint256 minimum);
     error TooManyTokens();
+    error PairNotAllowed();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -189,6 +190,10 @@ contract AgentVault is ReentrancyGuard {
         TokenConfig memory cout = tokens[tokenOut];
         if (!cin.allowed) revert TokenNotAllowed(tokenIn);
         if (!cout.allowed) revert TokenNotAllowed(tokenOut);
+        // Every swap is against the base token (fee tier 0, the stablecoin), so it always uses the pinned
+        // <token>/<base> pool. Token-to-token pairs often have no pool at the pinned tier, and a compromised
+        // operator could create a thin one to route through (review I-1).
+        if (cin.feeTier != 0 && cout.feeTier != 0) revert PairNotAllowed();
         uint24 pinned = cin.feeTier > cout.feeTier ? cin.feeTier : cout.feeTier;
         if (pinned == 0 || feeTier != pinned) revert BadFeeTier();
 
@@ -260,7 +265,10 @@ contract AgentVault is ReentrancyGuard {
             feeTier: feeTier,
             feed: AggregatorV3Interface(feed)
         });
-        _price(token, tokens[token]); // the feed must work when the token is registered
+        // The feed must answer when the token is registered, but its price need not be fresh: stock feeds pause
+        // for ~2 days every weekend, and freshness is enforced on every swap anyway (review L-1).
+        (, int256 answer,,,) = AggregatorV3Interface(feed).latestRoundData();
+        if (answer <= 0 || AggregatorV3Interface(feed).decimals() > 36) revert BadOraclePrice(token);
         emit TokenSet(token, feed, maxStaleness, feeTier);
     }
 

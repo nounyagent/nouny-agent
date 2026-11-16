@@ -45,11 +45,11 @@ Step-by-step instructions, with what each button does: **[docs/USER-GUIDE.md](do
 
 | Contract | Address | Role |
 |---|---|---|
-| **AgentVaultFactory** | [`0x0315841Ff9eC63321Faa050e937FD8402053C090`](https://robinhoodchain.blockscout.com/address/0x0315841Ff9eC63321Faa050e937FD8402053C090) | Creates one `AgentVault` per wallet with a fixed token / oracle / pool list |
-| **PayrollFactory** | [`0xeD9cE03E385554Bc829879EBa77cCBC1DeDce5bD`](https://robinhoodchain.blockscout.com/address/0xeD9cE03E385554Bc829879EBa77cCBC1DeDce5bD) | Creates one `PayrollVault` per wallet, pays in USDG, no admin |
+| **AgentVaultFactory** | [`0x842dB2d736F66A0132EaB3816C426Bc21bb746Ec`](https://robinhoodchain.blockscout.com/address/0x842dB2d736F66A0132EaB3816C426Bc21bb746Ec) | Creates one `AgentVault` per wallet with a fixed token / oracle / pool list |
+| **PayrollFactory** | [`0x5767a297bdc0083684720fc75580d51cB160DccE`](https://robinhoodchain.blockscout.com/address/0x5767a297bdc0083684720fc75580d51cB160DccE) | Creates one `PayrollVault` per wallet, pays in USDG, no admin |
 | NOUNY bot (operator) | [`0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2`](https://robinhoodchain.blockscout.com/address/0x0Ea4979Ebc035Dc08eE8Fa3D9B19e665720141E2) | May only **swap inside** vaults and **trigger** due payroll payments |
-| **NounyHook** | [`0xB4aaB55e82646A63fD2774405c0356Da4652a0C4`](https://robinhoodchain.blockscout.com/address/0xB4aaB55e82646A63fD2774405c0356Da4652a0C4) | Uniswap v4 hook of the WETH / USDG hooked pool: dynamic fee, one swap per block per address, optional payroll share |
-| **NounyLPVaultFactory** | [`0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE`](https://robinhoodchain.blockscout.com/address/0x804a52aDbF958FaAd15884C20A2fFE157A94c6eE) | Creates one `NounyLPVault` per wallet and pool; new vaults get the NOUNY bot as operator |
+| **NounyHook** | [`0x4D3929B70b9A5bE6131cE6D4Cfa8999fc679E0c4`](https://robinhoodchain.blockscout.com/address/0x4D3929B70b9A5bE6131cE6D4Cfa8999fc679E0c4) | Uniswap v4 hook of the WETH / USDG hooked pool: dynamic fee, one swap per block per address, optional payroll share |
+| **NounyLPVaultFactory** | [`0x7823d963A7daB90Ae3D2a71415Dc10182D237c44`](https://robinhoodchain.blockscout.com/address/0x7823d963A7daB90Ae3D2a71415Dc10182D237c44) | Creates one `NounyLPVault` per wallet and pool; new vaults get the NOUNY bot as operator |
 | **NounySwapRouter** | [`0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9`](https://robinhoodchain.blockscout.com/address/0x184F6B10f518e0D334962c1AB9C20B993A2dAcb9) | Exact-input swaps in hooked pools, with a minimum output and a deadline |
 | Uniswap v4 PoolManager | [`0x8366a39cc670b4001a1121b8f6a443a643e40951`](https://robinhoodchain.blockscout.com/address/0x8366a39cc670b4001a1121b8f6a443a643e40951) | Holds the hooked pool's liquidity |
 | Uniswap V3 SwapRouter02 | [`0xcaf681a66d020601342297493863e78c959e5cb2`](https://robinhoodchain.blockscout.com/address/0xcaf681a66d020601342297493863e78c959e5cb2) | The only router a vault swaps through |
@@ -84,7 +84,7 @@ Stock tokens are Robinhood Stock Tokens. Their Chainlink feeds follow US equitie
 
 | | |
 |---|---|
-| Pool ID | `0x0f1b6d9e3fb170d7270cf8f448b7d72364fd58d22c164e312ff81a541f5d210e` |
+| Pool ID | `0xe431f8b70b9d12557fed5dee6fc3f799b2312bf0248946528fa4aff5c71bef05` |
 | Tokens | WETH (currency0) / USDG (currency1), tick spacing 60, dynamic fee |
 | Fee | 0.05 % when calm, plus 0.005 % per tick of average price move per block, capped at 1 %. Computed on-chain on every swap. |
 | Swaps | One per block per address (blocks sandwiching and most MEV) |
@@ -108,6 +108,10 @@ In the app, liquidity comes from LP vaults. Every swap through `NounySwapRouter`
 
 Every agent swap is protected on-chain: the minimum output is computed from Chainlink (not by the bot), stale or invalid prices are rejected, the pool is pinned per token, total swap value is capped per 24 h, and the vault checks its own balance before and after. Every LP rebalance is checked on-chain too: pool price within your limit of Chainlink, current price inside the new range, range width within your bounds, and a minimum time between rebalances. Details: **[docs/CONTRACTS.md](docs/CONTRACTS.md)**.
 
+## Independent security review
+
+HEY Research Lab carried out an independent security review (not an audit) of the contracts at commit `0e1396a`: no critical, high or medium issues. Its three low-severity findings and nine notes are fixed, and the fixed contracts were redeployed on 16 Nov 2026 at the addresses above. The new deployments are re-tested separately. Details: **[docs/SECURITY.md](docs/SECURITY.md#independent-security-review-by-hey-research-lab-commit-0e1396a-16-nov-2026)**.
+
 ## Verify the deployment yourself
 
 This repository contains the exact source of the deployed contracts. Anyone can check that the code on-chain is this code:
@@ -118,12 +122,12 @@ npm run build
 npm run verify:deployment
 ```
 
-The script reads the contracts on Robinhood Chain (read-only, no keys). It checks every token, oracle, staleness limit and pool fee tier against [`config/robinhood.json`](config/robinhood.json), checks the hook's fee settings, permission flags and pool registration, and compares the deployed bytecode of **AgentVaultFactory, PayrollFactory, NounyHook, NounyLPVaultFactory and NounySwapRouter** with the code compiled from this repository.
+The script reads the contracts on Robinhood Chain (read-only, no keys). It checks every token, oracle, staleness limit and pool fee tier against [`config/robinhood.json`](config/robinhood.json), checks the hook's fee settings, permission flags and pool registration, compares the deployed bytecode of **AgentVaultFactory, PayrollFactory, NounyHook, NounyLPVaultFactory and NounySwapRouter** with the code compiled from this repository, and runs the hook's block logic on the live chain to confirm that "one swap per block" uses the L2 block.
 
 ### Run the tests
 
 ```bash
-npm test             # 63 unit and fuzz tests (AgentVault, Payroll, NounyHook, NounyLPVault, NounySwapRouter)
+npm test             # 77 unit and fuzz tests (AgentVault, Payroll, NounyHook, NounyLPVault, NounySwapRouter)
 npm run test:fuzz    # longer AgentVault fuzz run (2,000 random steps)
 npm run test:fork    # against a local copy of Robinhood Chain: real Uniswap V3 pools, the real v4 PoolManager and Chainlink feeds
 npm run check        # re-checks every token, feed and pool in config/robinhood.json on-chain

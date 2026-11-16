@@ -28,7 +28,10 @@ contract PayrollVault is ReentrancyGuard {
 
     uint32 public constant MIN_INTERVAL = 1 days;
     uint32 public constant MAX_INTERVAL = 366 days;
+    /// @notice Most ACTIVE recipients at once. Removed recipients free their place (review L-2).
     uint256 public constant MAX_RECIPIENTS = 100;
+    /// @notice Most recipient records ever (active + removed), so `payAllDue` and `dueNow` stay within gas limits.
+    uint256 public constant MAX_SLOTS = 1000;
 
     address public immutable owner;
     IERC20 public immutable token;
@@ -42,6 +45,7 @@ contract PayrollVault is ReentrancyGuard {
     event RecipientRemoved(uint256 indexed id);
     event Paid(uint256 indexed id, address indexed to, uint256 amount, uint64 periodDueAt);
     event Skipped(uint256 indexed id, uint256 needed, uint256 balance);
+    event PaymentFailed(uint256 indexed id, address indexed to, uint256 amount);
     event PausedChanged(bool paused);
     event Withdrawn(address indexed to, uint256 amount);
 
@@ -78,7 +82,7 @@ contract PayrollVault is ReentrancyGuard {
         if (to == address(0) || to == address(this)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
         if (interval < MIN_INTERVAL || interval > MAX_INTERVAL) revert BadInterval();
-        if (_recipients.length >= MAX_RECIPIENTS) revert TooManyRecipients();
+        if (activeCount >= MAX_RECIPIENTS || _recipients.length >= MAX_SLOTS) revert TooManyRecipients();
         if (firstPayAt == 0) firstPayAt = uint64(block.timestamp);
         if (firstPayAt + 1 < block.timestamp || firstPayAt > block.timestamp + 366 days) revert BadStart();
         id = _recipients.length;
@@ -105,9 +109,26 @@ contract PayrollVault is ReentrancyGuard {
         emit RecipientRemoved(id);
     }
 
+    /// @notice Pausing defers payments, it does not cancel them: after `setPaused(false)` every period that fell
+    ///         due while paused can be paid. Use `resumeAndSkipMissed` to resume without paying those periods.
     function setPaused(bool p) external onlyOwner {
         paused = p;
         emit PausedChanged(p);
+    }
+
+    /// @notice Unpause and move every overdue recipient to its next future due time, so the periods missed
+    ///         while paused are not paid (review I-3).
+    function resumeAndSkipMissed() external onlyOwner {
+        uint256 n = _recipients.length;
+        for (uint256 id; id < n; ++id) {
+            Recipient storage r = _recipients[id];
+            if (!r.active || block.timestamp < r.nextPayAt) continue;
+            uint256 periods = (block.timestamp - r.nextPayAt) / r.interval + 1;
+            r.nextPayAt += uint64(periods * r.interval);
+            emit RecipientUpdated(id, r.amount, r.interval, r.nextPayAt);
+        }
+        paused = false;
+        emit PausedChanged(false);
     }
 
     /// @notice Withdraw to the owner at any time, also while paused. `amount` = type(uint256).max withdraws everything.
@@ -151,9 +172,18 @@ contract PayrollVault is ReentrancyGuard {
                 emit Skipped(id, r.amount, bal);
                 continue;
             }
-            bal -= r.amount;
-            _pay(id, r);
-            ++paid;
+            // One recipient that cannot receive (e.g. frozen by the token issuer) must not block everyone else
+            // (review I-4): a failed transfer is skipped and that period stays due.
+            uint64 dueAt = r.nextPayAt;
+            r.nextPayAt = dueAt + r.interval; // effects before the transfer
+            if (_tryTransfer(r.to, r.amount)) {
+                bal -= r.amount;
+                emit Paid(id, r.to, r.amount, dueAt);
+                ++paid;
+            } else {
+                r.nextPayAt = dueAt;
+                emit PaymentFailed(id, r.to, r.amount);
+            }
         }
     }
 
@@ -189,6 +219,12 @@ contract PayrollVault is ReentrancyGuard {
     function _active(uint256 id) private view returns (Recipient storage r) {
         if (id >= _recipients.length || !_recipients[id].active) revert UnknownRecipient(id);
         r = _recipients[id];
+    }
+
+    /// @dev ERC-20 transfer that returns false instead of reverting (also for tokens that return no value).
+    function _tryTransfer(address to, uint256 amount) private returns (bool) {
+        (bool ok, bytes memory ret) = address(token).call(abi.encodeCall(IERC20.transfer, (to, amount)));
+        return ok && (ret.length == 0 ? address(token).code.length > 0 : (ret.length == 32 && abi.decode(ret, (bool))));
     }
 
     function _pay(uint256 id, Recipient storage r) private {

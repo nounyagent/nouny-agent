@@ -11,7 +11,7 @@
       "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
       "feed": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
       "feedDescription": "USDG / USD",
-      "maxStaleness": 90000
+      "maxStaleness": 97200
     },
     {
       "symbol": "WETH",
