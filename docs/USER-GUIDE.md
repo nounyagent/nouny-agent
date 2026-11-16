@@ -32,7 +32,7 @@ Paper agents trade **virtual money** ($10,000 each) on **real prices**. Use them
 2. **Name**: 3–32 letters or numbers.
 3. **Strategy**: see [Strategies](#3-strategies). Each one has a few settings; the defaults are sensible.
 4. **Mode**: *Paper*.
-5. **Market**: crypto (BTC, ETH, SOL, XRP, DOGE, LINK, AVAX, NEAR, SUI, ZEC), perpetuals (BTC-PERP, ETH-PERP, …) or stocks (AAPL, NVDA, TSLA, MSFT, AMZN, GOOGL, META, SPY, QQQ, COIN).
+5. **Market**: 30 crypto (BTC, ETH, SOL, XRP, DOGE, LINK, AVAX, NEAR, SUI, ZEC, BNB, ADA, TRX, LTC, BCH, UNI, AAVE, TAO, ENA, WLD, ICP, INJ, ONDO, HBAR, XLM, APT, DOT, ARB, FET, FIL), 23 perpetuals (BTC-PERP, ETH-PERP, SOL-PERP, HYPE-PERP, XRP-PERP, DOGE-PERP, SUI-PERP, LINK-PERP, BNB-PERP, ADA-PERP, AVAX-PERP, LTC-PERP, AAVE-PERP, ENA-PERP, TAO-PERP, ONDO-PERP, NEAR-PERP, WLD-PERP, ARB-PERP, APT-PERP, TRX-PERP, BCH-PERP, ZEC-PERP) or 25 stocks and ETFs (AAPL, NVDA, TSLA, MSFT, AMZN, GOOGL, META, SPY, QQQ, COIN, AMD, NFLX, AVGO, PLTR, HOOD, MSTR, ORCL, JPM, V, WMT, DIS, UBER, INTC, IWM, DIA).
 6. Click **Backtest & launch**.
 
 NOUNY first **backtests** the strategy on the last 720 hourly candles (30 days for crypto; for stocks, US market hours only, so roughly 5 months) and shows the result next to simply holding the market. The agent then makes **one decision every hour**: buy, sell or hold, with the reason written in its **Decision log**.
