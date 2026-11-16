@@ -133,7 +133,7 @@ All findings below are fixed in this repository. Because deployed contracts cann
 | I-6 | Info | A payroll address that cannot receive blocked one swap direction | **Fixed**: the share is skipped instead |
 | I-7 | Info | LP rebalance has no minimum amounts and `minInterval` could be 0 | **Fixed**: at least 15 minutes between agent moves; amounts stay bounded by the oracle band |
 | I-8 | Info | LP factory had no admin transfer; LP `withdraw` accepted `to = 0` | **Fixed**: two-step admin transfer; zero address rejected |
-| I-9 | Info | An old, empty vault (`0x2a07…AaF11`) still names the bot as operator | Owner action: call `setOperator(0x0000000000000000000000000000000000000000)` on that vault |
+| I-9 | Info | An old, empty vault (`0x2a07…AaF11`) still names the bot as operator | **Fixed**: the owner removed the operator on 17 Nov 2026 ([tx](https://robinhoodchain.blockscout.com/tx/0xd9f6776195697137c7967d0fd708eaf7c5f035d426b7bc533ac6805cf35e50e3)) |
 
 The regression tests are in [`test/Review.test.js`](../test/Review.test.js).
 
