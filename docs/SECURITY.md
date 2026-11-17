@@ -43,7 +43,7 @@ The NOUNY website and backend are not in this repository. The backend holds the 
 
 ## 3. Worst case if the NOUNY bot is compromised
 
-**Vaults.** A stolen bot key can only trade a vault's tokens against each other through the pinned pools. It can never withdraw or send funds anywhere else. Each swap must return at least the oracle value minus `maxSlippageBps`, and the total value swapped per 24 hours is capped by `dailyLimitUsd`. The worst loss per day is therefore roughly:
+**Vaults.** A stolen bot key can only swap a vault's tokens against USDG through the pinned pools. It can never withdraw or send funds anywhere else. Each swap must return at least the oracle value minus `maxSlippageBps`, and the total value swapped per 24 hours is capped by `dailyLimitUsd`. The worst loss per day is therefore roughly:
 
 ```
 dailyLimitUsd × (maxSlippageBps + pool fee + oracle lag)
@@ -118,7 +118,7 @@ Invariants 1–4 of AgentVault are exercised by the randomized test [`test/fuzz.
 
 [HEY Research Lab](https://heyresearch.xyz) reviewed AgentVault, AgentVaultFactory, PayrollVault, PayrollFactory, NounyHook, NounySwapRouter, NounyLPVault and its factory at commit `0e1396a`. This is an independent security review, not an audit. It found no critical, high or medium issues; the main claims held (the vault bot cannot move value out, payroll only pays registered recipients when due, and the five deployed contracts matched the commit).
 
-All findings below are fixed in this repository. Because deployed contracts cannot be changed, the fixed AgentVaultFactory, PayrollFactory, NounyHook (with a new WETH / USDG pool) and NounyLPVaultFactory were redeployed on 16 Nov 2026 (addresses in the [README](../README.md)); NounySwapRouter did not change. HEY Research Lab re-tests the new deployments separately, and the result will be added here.
+All findings below are fixed in this repository. Because deployed contracts cannot be changed, the fixed AgentVaultFactory, PayrollFactory, NounyHook (with a new WETH / USDG pool) and NounyLPVaultFactory were redeployed on 16 Nov 2026 (addresses in the [README](../README.md)); NounySwapRouter did not change. HEY Research Lab re-tested commit `e79bca2` and the new deployments on 17 Nov 2026. The three low-severity findings are fixed, eight notes are fixed and I-7 is mitigated. Independent security review, not an audit.
 
 | ID | Severity | Issue | Status |
 |---|---|---|---|
@@ -131,7 +131,7 @@ All findings below are fixed in this repository. Because deployed contracts cann
 | I-4 | Info | One reverting transfer stopped `payAllDue` for everyone | **Fixed**: per-recipient skip with `PaymentFailed` |
 | I-5 | Info | Anyone who registered a pool key first became its owner | **Fixed**: only the registrant can initialize the pool |
 | I-6 | Info | A payroll address that cannot receive blocked one swap direction | **Fixed**: the share is skipped instead |
-| I-7 | Info | LP rebalance has no minimum amounts and `minInterval` could be 0 | **Fixed**: at least 15 minutes between agent moves; amounts stay bounded by the oracle band |
+| I-7 | Info | LP rebalance has no minimum amounts and `minInterval` could be 0 | **Mitigated**: at least 15 minutes between agent moves; a rebalance still has no minimum amounts, which stay bounded by the oracle band |
 | I-8 | Info | LP factory had no admin transfer; LP `withdraw` accepted `to = 0` | **Fixed**: two-step admin transfer; zero address rejected |
 | I-9 | Info | An old, empty vault (`0x2a07…AaF11`) still names the bot as operator | **Fixed**: the owner removed the operator on 17 Nov 2026 ([tx](https://robinhoodchain.blockscout.com/tx/0xd9f6776195697137c7967d0fd708eaf7c5f035d426b7bc533ac6805cf35e50e3)) |
 

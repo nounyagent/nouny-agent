@@ -64,6 +64,14 @@ contract MockArbSys {
     }
 }
 
+/// @notice ArbSys stand-in for local forks: answers with the current block number, as the real precompile does on
+///         Robinhood Chain. A Hardhat fork copies the 0xfe placeholder code at 0x64 but not the precompile itself.
+contract MockArbSysBlock {
+    function arbBlockNumber() external view returns (uint256) {
+        return block.number;
+    }
+}
+
 contract MockFeed {
     uint8 public decimals;
     int256 public answer;

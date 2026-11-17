@@ -1,7 +1,7 @@
 // NounyHook on a local fork of Robinhood Chain against the REAL Uniswap v4 PoolManager, with real WETH and USDG.
 //   npm run test:fork:hook      (FORK=1, nothing is sent on-chain)
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const netConfig = require('../scripts/netconfig');
 
 const POOL_MANAGER = '0x8366a39cc670b4001a1121b8f6a443a643e40951';
@@ -18,6 +18,10 @@ describe('NounyHook on a Robinhood Chain fork (real v4 PoolManager)', function (
   before(async () => {
     [me, payroll] = await ethers.getSigners();
     expect((await ethers.provider.getCode(POOL_MANAGER)).length).to.be.gt(1000);
+    // A fork copies the 0xfe placeholder at the ArbSys address (0x64) but not the precompile behind it, so a call to it
+    // would burn all its gas. Put a stand-in there that answers with the block number, as the real one does on chain.
+    const arb = await ethers.deployContract('MockArbSysBlock');
+    await network.provider.send('hardhat_setCode', ['0x0000000000000000000000000000000000000064', await ethers.provider.getCode(await arb.getAddress())]);
     // hook at a mined CREATE2 address
     const dep = await ethers.deployContract('Create2Deployer');
     const init = (await (await ethers.getContractFactory('NounyHook')).getDeployTransaction(POOL_MANAGER, 500, 10000, 50)).data;

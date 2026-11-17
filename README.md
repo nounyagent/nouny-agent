@@ -110,7 +110,7 @@ Every agent swap is protected on-chain: the minimum output is computed from Chai
 
 ## Independent security review
 
-HEY Research Lab carried out an independent security review (not an audit) of the contracts at commit `0e1396a`: no critical, high or medium issues. Its three low-severity findings and nine notes are fixed, and the fixed contracts were redeployed on 16 Nov 2026 at the addresses above. The new deployments are re-tested separately. Details: **[docs/SECURITY.md](docs/SECURITY.md#independent-security-review-by-hey-research-lab-commit-0e1396a-16-nov-2026)**.
+HEY Research Lab carried out an independent security review (not an audit) of the contracts at commit `0e1396a`: no critical, high or medium issues. Its three low-severity findings are fixed and its nine notes addressed, and the fixed contracts were redeployed on 16 Nov 2026 at the addresses above. HEY Research Lab re-tested commit `e79bca2` and the new deployments on 17 Nov 2026: the three low-severity findings are fixed, eight notes are fixed and I-7 is mitigated. Details: **[docs/SECURITY.md](docs/SECURITY.md#independent-security-review-by-hey-research-lab-commit-0e1396a-16-nov-2026)**.
 
 ## Verify the deployment yourself
 
